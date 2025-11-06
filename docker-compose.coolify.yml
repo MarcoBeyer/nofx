@@ -18,7 +18,15 @@ services:
       - AI_MAX_TOKENS=4000 # AI响应的最大token数（默认2000，建议4000-8000）
       - NOFX_ADMIN_PASSWORD=${NOFX_ADMIN_PASSWORD} # Admin password when admin_mode=true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:8080/api/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -39,7 +47,7 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost/health",
+          "http://127.0.0.1/health",
         ]
       interval: 30s
       timeout: 10s
