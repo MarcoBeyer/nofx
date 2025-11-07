@@ -11,11 +11,13 @@ services:
       - ./config.db:/app/config.db
       - ./beta_codes.txt:/app/beta_codes.txt:ro
       - ./decision_logs:/app/decision_logs
+      - ./secrets:/app/secrets:ro # RSA密钥文件
       - ./prompts:/app/prompts
       - /etc/localtime:/etc/localtime:ro # Sync host time
     environment:
       - TZ=${NOFX_TIMEZONE:-Asia/Shanghai} # Set timezone
       - AI_MAX_TOKENS=4000 # AI响应的最大token数（默认2000，建议4000-8000）
+      - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY} # 数据库加密密钥
       - NOFX_ADMIN_PASSWORD=${NOFX_ADMIN_PASSWORD} # Admin password when admin_mode=true
     healthcheck:
       test:
