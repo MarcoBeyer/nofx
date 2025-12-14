@@ -19,6 +19,7 @@ services:
       - AI_MAX_TOKENS=4000 # AI响应的最大token数（默认2000，建议4000-8000）
       - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY} # 数据库加密密钥
       - NOFX_ADMIN_PASSWORD=${NOFX_ADMIN_PASSWORD} # Admin password when admin_mode=true
+      - RSA_PRIVATE_KEY=${RSA_PRIVATE_KEY} # RSA Private Key for decrypting sensitive data
     healthcheck:
       test:
         [
