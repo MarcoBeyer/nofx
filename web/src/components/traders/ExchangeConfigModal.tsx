@@ -1043,6 +1043,24 @@ export function ExchangeConfigModal({
                         {t('hyperliquidMainWalletAddressDesc', language)}
                       </div>
                     </div>
+
+                    {/* Testnet Checkbox */}
+                    <div className="flex items-center gap-2 mt-4">
+                      <input
+                        type="checkbox"
+                        id="hyperliquid-testnet"
+                        checked={testnet}
+                        onChange={(e) => setTestnet(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-600 text-yellow-500 focus:ring-yellow-500 bg-gray-700"
+                      />
+                      <label
+                        htmlFor="hyperliquid-testnet"
+                        className="text-sm font-medium cursor-pointer"
+                        style={{ color: '#EAECEF' }}
+                      >
+                        {t('useTestnet', language)}
+                      </label>
+                    </div>
                   </>
                 )}
 
