@@ -2142,6 +2142,22 @@ func (s *Server) handleRegister(c *gin.Context) {
 		return
 	}
 
+	// Check allowed emails whitelist
+	allowedEmails := config.Get().AllowedEmails
+	if len(allowedEmails) > 0 {
+		allowed := false
+		for _, email := range allowedEmails {
+			if email == req.Email {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Email not in whitelist"})
+			return
+		}
+	}
+
 	// Check if email already exists
 	_, err := s.store.User().GetByEmail(req.Email)
 	if err == nil {

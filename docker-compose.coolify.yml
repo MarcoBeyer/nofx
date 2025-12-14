@@ -21,6 +21,7 @@ services:
       - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY} # 数据库加密密钥
       - NOFX_ADMIN_PASSWORD=${NOFX_ADMIN_PASSWORD} # Admin password when admin_mode=true
       - RSA_PRIVATE_KEY=${RSA_PRIVATE_KEY} # RSA Private Key for decrypting sensitive data
+      - ALLOWED_EMAILS=${ALLOWED_EMAILS} # Optional: Restrict signup to specific emails
     healthcheck:
       test:
         [

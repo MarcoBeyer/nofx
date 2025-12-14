@@ -17,6 +17,7 @@ type Config struct {
 	JWTSecret           string
 	RegistrationEnabled bool
 	MaxUsers            int // Maximum number of users allowed (0 = unlimited, default = 1)
+	AllowedEmails       []string // Whitelist of allowed emails (empty = allow all)
 
 	// Security configuration
 	// TransportEncryption enables browser-side encryption for API keys
@@ -47,6 +48,16 @@ func Init() {
 	if v := os.Getenv("MAX_USERS"); v != "" {
 		if maxUsers, err := strconv.Atoi(v); err == nil && maxUsers >= 0 {
 			cfg.MaxUsers = maxUsers
+		}
+	}
+
+	if v := os.Getenv("ALLOWED_EMAILS"); v != "" {
+		emails := strings.Split(v, ",")
+		for _, email := range emails {
+			trimmed := strings.TrimSpace(email)
+			if trimmed != "" {
+				cfg.AllowedEmails = append(cfg.AllowedEmails, trimmed)
+			}
 		}
 	}
 
