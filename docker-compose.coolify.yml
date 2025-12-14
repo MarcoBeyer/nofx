@@ -7,6 +7,7 @@ services:
     container_name: nofx-trading
     restart: unless-stopped
     volumes:
+      - ./data:/app/data
       - ./config.json:/app/config.json:ro
       - ./config.db:/app/config.db
       - ./beta_codes.txt:/app/beta_codes.txt:ro
