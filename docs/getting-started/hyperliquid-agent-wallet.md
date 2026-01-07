@@ -48,15 +48,26 @@ Add your agent wallet through the NOFX web interface:
 4. Enter:
    - **Wallet Address**: Your main wallet address (with `0x`)
    - **Private Key**: Agent private key (remove `0x` prefix)
-5. Save configuration
+5. (Optional) Check **Use Testnet** if you are using the Hyperliquid Testnet
+6. Save configuration
+
+## Using Hyperliquid Testnet
+
+To use the testnet:
+
+1. Visit [Hyperliquid Testnet](https://app.hyperliquid-testnet.xyz/)
+2. Connect your wallet and switch to Arbitrum Sepolia (or supported testnet network)
+3. Get testnet USDC from the faucet
+4. Create an Agent Wallet on the testnet interface
+5. Configure NOFX with the testnet agent credentials and check **Use Testnet**
 
 ## Agent Wallet Details
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| Main Wallet | Your connected wallet (holds funds) | `0xABC123...` |
-| Agent Wallet | Sub-wallet for trading | `0xDEF456...` |
-| Private Key | Only needed for NOFX | `abc123...` (no 0x) |
+| Field        | Description                         | Example             |
+| ------------ | ----------------------------------- | ------------------- |
+| Main Wallet  | Your connected wallet (holds funds) | `0xABC123...`       |
+| Agent Wallet | Sub-wallet for trading              | `0xDEF456...`       |
+| Private Key  | Only needed for NOFX                | `abc123...` (no 0x) |
 
 ## Managing Your Agent
 
@@ -69,6 +80,7 @@ Add your agent wallet through the NOFX web interface:
 ### Create Multiple Agents
 
 You can create multiple agents for different purposes:
+
 - One for NOFX
 - One for other trading bots
 - One for manual API access
@@ -83,9 +95,9 @@ You can create multiple agents for different purposes:
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Agent not working | Check if agent is still active in Hyperliquid settings |
-| Invalid signature | Ensure private key doesn't have `0x` prefix |
-| Insufficient funds | Transfer funds to your Hyperliquid account |
-| Connection error | Check network (mainnet vs testnet) setting |
+| Issue              | Solution                                               |
+| ------------------ | ------------------------------------------------------ |
+| Agent not working  | Check if agent is still active in Hyperliquid settings |
+| Invalid signature  | Ensure private key doesn't have `0x` prefix            |
+| Insufficient funds | Transfer funds to your Hyperliquid account             |
+| Connection error   | Check network (mainnet vs testnet) setting             |
