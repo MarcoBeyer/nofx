@@ -16,8 +16,7 @@ type UserStore struct {
 // User user model
 type User struct {
 	ID           string    `gorm:"primaryKey" json:"id"`
-	// Explicitly set nullable to handle migration issues
-	Email        string    `gorm:"type:text;null;default:null;uniqueIndex:idx_users_email" json:"email"`
+	Email        string    `gorm:"uniqueIndex:idx_users_email;not null" json:"email"`
 	PasswordHash string    `gorm:"column:password_hash;not null" json:"-"`
 	OTPSecret    string    `gorm:"column:otp_secret" json:"-"`
 	OTPVerified  bool      `gorm:"column:otp_verified;default:false" json:"otp_verified"`
