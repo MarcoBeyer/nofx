@@ -18,6 +18,10 @@ interface AuthContextType {
     message?: string
     userID?: string
     requiresOTP?: boolean
+    requiresOTPSetup?: boolean
+    qrCodeURL?: string
+    otpSecret?: string
+    email?: string
   }>
   loginAdmin: (password: string) => Promise<{
     success: boolean
@@ -119,22 +123,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json()
 
       if (response.ok) {
+        // Check for OTP setup required (incomplete registration)
+        if (data.requires_otp_setup) {
+          return {
+            success: true,
+            userID: data.user_id,
+            requiresOTPSetup: true,
+            message: data.message,
+            qrCodeURL: data.qr_code_url,
+            otpSecret: data.otp_secret,
+            email: data.email
+          }
+        }
+        // Check for OTP verification required (normal login flow)
         if (data.requires_otp) {
           return {
             success: true,
             userID: data.user_id,
             requiresOTP: true,
             message: data.message,
+            qrCodeURL: data.qr_code_url,
+            otpSecret: data.otp_secret
           }
         }
+        // Unexpected success response
+        return { success: false, message: '登录响应异常' }
       } else {
-        return { success: false, message: data.error }
+        return {
+          success: false,
+          message: data.error,
+          qrCodeURL: data.qr_code_url,
+          otpSecret: data.otp_secret,
+          userID: data.user_id
+        }
       }
     } catch (error) {
       return { success: false, message: '登录失败，请重试' }
     }
-
-    return { success: false, message: '未知错误' }
   }
 
   const loginAdmin = async (password: string) => {
@@ -192,27 +217,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       requestBody.beta_code = betaCode
     }
 
-    const result = await httpClient.post<{
-      user_id: string
-      otp_secret: string
-      qr_code_url: string
-      message: string
-    }>('/api/register', requestBody)
+    try {
+      const result = await httpClient.post<{
+        user_id: string
+        otp_secret: string
+        qr_code_url: string
+        message: string
+      }>('/api/register', requestBody)
 
-    if (result.success && result.data) {
-      return {
-        success: true,
-        userID: result.data.user_id,
-        otpSecret: result.data.otp_secret,
-        qrCodeURL: result.data.qr_code_url,
-        message: result.message || result.data.message,
+      if (result.success && result.data) {
+        return {
+          success: true,
+          userID: result.data.user_id,
+          otpSecret: result.data.otp_secret,
+          qrCodeURL: result.data.qr_code_url,
+          message: result.message || result.data.message,
+        }
       }
-    }
 
-    // Only business errors reach here (system/network errors were intercepted)
-    return {
-      success: false,
-      message: result.message || 'Registration failed',
+      // Only business errors reach here (system/network errors were intercepted)
+      return {
+        success: false,
+        message: result.message || 'Registration failed',
+      }
+    } catch (error) {
+      console.error('Auth register error:', error);
+      // Re-throw if it's a critical error, or return structured error
+      // Since httpClient throws on 500, we should return a structured error response
+      // to let the UI display it gracefully without crashing.
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Detailed server error'
+      }
     }
   }
 

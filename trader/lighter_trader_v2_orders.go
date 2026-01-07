@@ -5,52 +5,55 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"nofx/logger"
+	"mime/multipart"
 	"net/http"
+	"nofx/logger"
 	"strconv"
 
 	"github.com/elliottech/lighter-go/types"
 )
 
 // SetStopLoss Set stop-loss order (implements Trader interface)
+// IMPORTANT: Uses StopLossOrder type (type=2) with TriggerPrice, NOT regular limit order
 func (t *LighterTraderV2) SetStopLoss(symbol string, positionSide string, quantity, stopPrice float64) error {
 	if t.txClient == nil {
 		return fmt.Errorf("TxClient not initialized")
 	}
 
-	logger.Infof("🛑 LIGHTER Setting stop-loss: %s %s qty=%.4f, stop=%.2f", symbol, positionSide, quantity, stopPrice)
+	logger.Infof("🛑 LIGHTER Setting stop-loss: %s %s qty=%.4f, trigger=%.2f", symbol, positionSide, quantity, stopPrice)
 
-	// Determine order direction (short position uses buy order, long position uses sell order)
+	// Determine order direction (long position uses sell order, short position uses buy order)
 	isAsk := (positionSide == "LONG" || positionSide == "long")
 
-	// Create limit stop-loss order
-	_, err := t.CreateOrder(symbol, isAsk, quantity, stopPrice, "limit")
+	// Create stop-loss order with TriggerPrice (type=2: StopLossOrder)
+	_, err := t.CreateStopOrder(symbol, isAsk, quantity, stopPrice, "stop_loss")
 	if err != nil {
 		return fmt.Errorf("failed to set stop-loss: %w", err)
 	}
 
-	logger.Infof("✓ LIGHTER stop-loss set: %.2f", stopPrice)
+	logger.Infof("✓ LIGHTER stop-loss set: trigger=%.2f", stopPrice)
 	return nil
 }
 
 // SetTakeProfit Set take-profit order (implements Trader interface)
+// IMPORTANT: Uses TakeProfitOrder type (type=4) with TriggerPrice, NOT regular limit order
 func (t *LighterTraderV2) SetTakeProfit(symbol string, positionSide string, quantity, takeProfitPrice float64) error {
 	if t.txClient == nil {
 		return fmt.Errorf("TxClient not initialized")
 	}
 
-	logger.Infof("🎯 LIGHTER Setting take-profit: %s %s qty=%.4f, tp=%.2f", symbol, positionSide, quantity, takeProfitPrice)
+	logger.Infof("🎯 LIGHTER Setting take-profit: %s %s qty=%.4f, trigger=%.2f", symbol, positionSide, quantity, takeProfitPrice)
 
-	// Determine order direction (short position uses buy order, long position uses sell order)
+	// Determine order direction (long position uses sell order, short position uses buy order)
 	isAsk := (positionSide == "LONG" || positionSide == "long")
 
-	// Create limit take-profit order
-	_, err := t.CreateOrder(symbol, isAsk, quantity, takeProfitPrice, "limit")
+	// Create take-profit order with TriggerPrice (type=4: TakeProfitOrder)
+	_, err := t.CreateStopOrder(symbol, isAsk, quantity, takeProfitPrice, "take_profit")
 	if err != nil {
 		return fmt.Errorf("failed to set take-profit: %w", err)
 	}
 
-	logger.Infof("✓ LIGHTER take-profit set: %.2f", takeProfitPrice)
+	logger.Infof("✓ LIGHTER take-profit set: trigger=%.2f", takeProfitPrice)
 	return nil
 }
 
@@ -110,37 +113,24 @@ func (t *LighterTraderV2) GetOrderStatus(symbol string, orderID string) (map[str
 
 	resp, err := t.client.Do(req)
 	if err != nil {
-		// If query fails, assume order is filled
-		return map[string]interface{}{
-			"orderId":     orderID,
-			"status":      "FILLED",
-			"avgPrice":    0.0,
-			"executedQty": 0.0,
-			"commission":  0.0,
-		}, nil
+		// ✅ 正确做法：查询失败返回错误，而不是假设成交
+		return nil, fmt.Errorf("failed to query order status: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return map[string]interface{}{
-			"orderId":     orderID,
-			"status":      "FILLED",
-			"avgPrice":    0.0,
-			"executedQty": 0.0,
-			"commission":  0.0,
-		}, nil
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Check HTTP status code
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var order OrderResponse
 	if err := json.Unmarshal(body, &order); err != nil {
-		return map[string]interface{}{
-			"orderId":     orderID,
-			"status":      "FILLED",
-			"avgPrice":    0.0,
-			"executedQty": 0.0,
-			"commission":  0.0,
-		}, nil
+		return nil, fmt.Errorf("failed to parse order response: %w, body: %s", err, string(body))
 	}
 
 	// Convert status to unified format
@@ -271,10 +261,11 @@ func (t *LighterTraderV2) CancelOrder(symbol, orderID string) error {
 	}
 
 	// Get market index
-	marketIndex, err := t.getMarketIndex(symbol)
+	marketIndexU16, err := t.getMarketIndex(symbol)
 	if err != nil {
 		return fmt.Errorf("failed to get market index: %w", err)
 	}
+	marketIndex := uint8(marketIndexU16) // SDK expects uint8
 
 	// Convert orderID to int64
 	orderIndex, err := strconv.ParseInt(orderID, 10, 64)
@@ -313,30 +304,37 @@ func (t *LighterTraderV2) CancelOrder(symbol, orderID string) error {
 	return nil
 }
 
-// submitCancelOrder Submit signed cancel order to LIGHTER API
+// submitCancelOrder Submit signed cancel order to LIGHTER API using multipart/form-data
 func (t *LighterTraderV2) submitCancelOrder(signedTx []byte) (map[string]interface{}, error) {
 	const TX_TYPE_CANCEL_ORDER = 15
 
-	// Build request
-	req := SendTxRequest{
-		TxType:          TX_TYPE_CANCEL_ORDER,
-		TxInfo:          string(signedTx),
-		PriceProtection: false, // Cancel order doesn't need price protection
+	// Build multipart form data (Lighter API requires form-data, not JSON)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	// Add tx_type field
+	if err := writer.WriteField("tx_type", strconv.Itoa(TX_TYPE_CANCEL_ORDER)); err != nil {
+		return nil, fmt.Errorf("failed to write tx_type: %w", err)
 	}
 
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize request: %w", err)
+	// Add tx_info field
+	if err := writer.WriteField("tx_info", string(signedTx)); err != nil {
+		return nil, fmt.Errorf("failed to write tx_info: %w", err)
+	}
+
+	// Close multipart writer
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
 	}
 
 	// Send POST request to /api/v1/sendTx
 	endpoint := fmt.Sprintf("%s/api/v1/sendTx", t.baseURL)
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequest("POST", endpoint, &body)
 	if err != nil {
 		return nil, err
 	}
 
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := t.client.Do(httpReq)
 	if err != nil {
@@ -344,15 +342,15 @@ func (t *LighterTraderV2) submitCancelOrder(signedTx []byte) (map[string]interfa
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse response
 	var sendResp SendTxResponse
-	if err := json.Unmarshal(body, &sendResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w, body: %s", err, string(body))
+	if err := json.Unmarshal(respBody, &sendResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w, body: %s", err, string(respBody))
 	}
 
 	// Check response code

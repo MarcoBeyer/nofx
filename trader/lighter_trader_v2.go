@@ -2,12 +2,13 @@ package trader
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io"
-	"nofx/logger"
+	"math"
 	"net/http"
+	"net/url"
+	"nofx/logger"
 	"strings"
 	"sync"
 	"time"
@@ -15,21 +16,50 @@ import (
 	lighterClient "github.com/elliottech/lighter-go/client"
 	lighterHTTP "github.com/elliottech/lighter-go/client/http"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // AccountInfo LIGHTER account information
 type AccountInfo struct {
-	AccountIndex int64  `json:"account_index"`
-	L1Address    string `json:"l1_address"`
-	// Other fields can be added based on actual API response
+	AccountIndex     int64   `json:"account_index"`
+	Index            int64   `json:"index"` // Same as account_index
+	L1Address        string  `json:"l1_address"`
+	AvailableBalance string  `json:"available_balance"`
+	Collateral       string  `json:"collateral"`
+	CrossAssetValue  string  `json:"cross_asset_value"`
+	TotalEquity      string  `json:"total_equity"`
+	UnrealizedPnl    string  `json:"unrealized_pnl"`
+	Positions        []LighterPositionInfo `json:"positions"`
+}
+
+// LighterPositionInfo Position info from Lighter account API
+type LighterPositionInfo struct {
+	MarketID              int     `json:"market_id"`
+	Symbol                string  `json:"symbol"`
+	Sign                  int     `json:"sign"`                    // 1 = long, -1 = short
+	Position              string  `json:"position"`                // Position size
+	AvgEntryPrice         string  `json:"avg_entry_price"`         // Entry price
+	PositionValue         string  `json:"position_value"`          // Position value in USD
+	LiquidationPrice      string  `json:"liquidation_price"`
+	UnrealizedPnl         string  `json:"unrealized_pnl"`
+	RealizedPnl           string  `json:"realized_pnl"`
+	InitialMarginFraction string  `json:"initial_margin_fraction"` // e.g. "5.00" means 5% = 20x leverage
+	AllocatedMargin       string  `json:"allocated_margin"`
+	MarginMode            int     `json:"margin_mode"`             // 0 = cross, 1 = isolated
+}
+
+// AccountResponse LIGHTER account API response
+// API may return accounts in "accounts" or "sub_accounts" field
+type AccountResponse struct {
+	Code        int           `json:"code"`
+	Message     string        `json:"message"`
+	Accounts    []AccountInfo `json:"accounts"`
+	SubAccounts []AccountInfo `json:"sub_accounts"` // Sub-accounts field
 }
 
 // LighterTraderV2 New implementation using official lighter-go SDK
 type LighterTraderV2 struct {
 	ctx        context.Context
-	privateKey *ecdsa.PrivateKey // L1 wallet private key (for account identification)
-	walletAddr string            // Ethereum wallet address
+	walletAddr string // Ethereum wallet address
 
 	client  *http.Client
 	baseURL string
@@ -55,54 +85,60 @@ type LighterTraderV2 struct {
 	precisionMutex  sync.RWMutex
 
 	// Market index cache
-	marketIndexMap map[string]uint8 // symbol -> market_id
+	marketIndexMap map[string]uint16 // symbol -> market_id
 	marketMutex    sync.RWMutex
 }
 
 // NewLighterTraderV2 Create new LIGHTER trader (using official SDK)
 // Parameters:
-//   - l1PrivateKeyHex: L1 wallet private key (32 bytes, standard Ethereum private key)
-//   - walletAddr: Ethereum wallet address (optional, will be derived from private key if empty)
-//   - apiKeyPrivateKeyHex: API Key private key (40 bytes, for signing transactions) - needs generation if empty
+//   - walletAddr: Ethereum wallet address (required)
+//   - apiKeyPrivateKeyHex: API Key private key (40 bytes, for signing transactions)
+//   - apiKeyIndex: API Key index (0-255)
 //   - testnet: Whether to use testnet
-func NewLighterTraderV2(l1PrivateKeyHex, walletAddr, apiKeyPrivateKeyHex string, testnet bool) (*LighterTraderV2, error) {
-	// 1. Parse L1 private key
-	l1PrivateKeyHex = strings.TrimPrefix(strings.ToLower(l1PrivateKeyHex), "0x")
-	l1PrivateKey, err := crypto.HexToECDSA(l1PrivateKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid L1 private key: %w", err)
+func NewLighterTraderV2(walletAddr, apiKeyPrivateKeyHex string, apiKeyIndex int, testnet bool) (*LighterTraderV2, error) {
+	// 1. Validate wallet address
+	if walletAddr == "" {
+		return nil, fmt.Errorf("wallet address is required")
 	}
 
-	// 2. If wallet address not provided, derive from private key
-	if walletAddr == "" {
-		walletAddr = crypto.PubkeyToAddress(*l1PrivateKey.Public().(*ecdsa.PublicKey)).Hex()
-		logger.Infof("✓ Derived wallet address from private key: %s", walletAddr)
+	// Convert to checksum address (Lighter API is case-sensitive)
+	walletAddr = ToChecksumAddress(walletAddr)
+	logger.Infof("Using checksum address: %s", walletAddr)
+
+	// 2. Validate API Key
+	if apiKeyPrivateKeyHex == "" {
+		return nil, fmt.Errorf("API Key private key is required")
 	}
 
 	// 3. Determine API URL and Chain ID
+	// Note: Python SDK uses 304 for mainnet, 300 for testnet (not the L1 chain IDs)
 	baseURL := "https://mainnet.zklighter.elliot.ai"
-	chainID := uint32(42766) // Mainnet Chain ID
+	chainID := uint32(304) // Mainnet Lighter Chain ID (from Python SDK)
 	if testnet {
 		baseURL = "https://testnet.zklighter.elliot.ai"
-		chainID = uint32(42069) // Testnet Chain ID
+		chainID = uint32(300) // Testnet Lighter Chain ID (from Python SDK)
 	}
 
 	// 4. Create HTTP client
 	httpClient := lighterHTTP.NewClient(baseURL)
 
 	trader := &LighterTraderV2{
-		ctx:              context.Background(),
-		privateKey:       l1PrivateKey,
-		walletAddr:       walletAddr,
-		client:           &http.Client{Timeout: 30 * time.Second},
-		baseURL:          baseURL,
+		ctx:        context.Background(),
+		walletAddr: walletAddr,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				Proxy: nil, // Disable proxy for direct connection to Lighter API
+			},
+		},
+		baseURL: baseURL,
 		testnet:          testnet,
 		chainID:          chainID,
 		httpClient:       httpClient,
 		apiKeyPrivateKey: apiKeyPrivateKeyHex,
-		apiKeyIndex:      0, // Default to index 0
+		apiKeyIndex:      uint8(apiKeyIndex),
 		symbolPrecision:  make(map[string]SymbolPrecision),
-		marketIndexMap:   make(map[string]uint8),
+		marketIndexMap:   make(map[string]uint16),
 	}
 
 	// 5. Initialize account (get account index)
@@ -110,14 +146,7 @@ func NewLighterTraderV2(l1PrivateKeyHex, walletAddr, apiKeyPrivateKeyHex string,
 		return nil, fmt.Errorf("failed to initialize account: %w", err)
 	}
 
-	// 6. If no API Key, prompt user to generate one
-	if apiKeyPrivateKeyHex == "" {
-		logger.Infof("⚠️  No API Key private key provided, please call GenerateAndRegisterAPIKey() to generate")
-		logger.Infof("   Or get an existing API Key from LIGHTER website")
-		return trader, nil
-	}
-
-	// 7. Create TxClient (for signing transactions)
+	// 6. Create TxClient (for signing transactions)
 	txClient, err := lighterClient.NewTxClient(
 		httpClient,
 		apiKeyPrivateKeyHex,
@@ -131,11 +160,12 @@ func NewLighterTraderV2(l1PrivateKeyHex, walletAddr, apiKeyPrivateKeyHex string,
 
 	trader.txClient = txClient
 
-	// 8. Verify API Key is correct
+	// 7. Verify API Key is correct
 	if err := trader.checkClient(); err != nil {
-		logger.Infof("⚠️  API Key verification failed: %v", err)
-		logger.Infof("   You may need to regenerate API Key or check configuration")
-		return trader, err
+		logger.Warnf("⚠️  API Key verification failed: %v", err)
+		logger.Warnf("⚠️  The API key may not be registered on-chain. Authenticated API calls (like GetTrades) will fail.")
+		logger.Warnf("⚠️  To fix: Register this API key using change_api_key transaction from app.lighter.xyz")
+		// Don't fail here, allow trader to continue (may work with some operations)
 	}
 
 	logger.Infof("✓ LIGHTER trader initialized successfully (account=%d, apiKey=%d, testnet=%v)",
@@ -161,8 +191,9 @@ func (t *LighterTraderV2) initializeAccount() error {
 }
 
 // getAccountByL1Address Get LIGHTER account info by L1 wallet address
+// Supports both main accounts and sub-accounts
 func (t *LighterTraderV2) getAccountByL1Address() (*AccountInfo, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/account?by=address&value=%s", t.baseURL, t.walletAddr)
+	endpoint := fmt.Sprintf("%s/api/v1/account?by=l1_address&value=%s", t.baseURL, t.walletAddr)
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
@@ -180,16 +211,46 @@ func (t *LighterTraderV2) getAccountByL1Address() (*AccountInfo, error) {
 		return nil, err
 	}
 
+	// Log raw response for debugging
+	logger.Infof("LIGHTER account API response: %s", string(body))
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get account (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	var accountInfo AccountInfo
-	if err := json.Unmarshal(body, &accountInfo); err != nil {
+	// Parse response - Lighter may return accounts in "accounts" or "sub_accounts"
+	var accountResp AccountResponse
+	if err := json.Unmarshal(body, &accountResp); err != nil {
 		return nil, fmt.Errorf("failed to parse account response: %w", err)
 	}
 
-	return &accountInfo, nil
+	// Check for API error
+	if accountResp.Code != 0 && accountResp.Code != 200 {
+		return nil, fmt.Errorf("Lighter API error (code %d): %s", accountResp.Code, accountResp.Message)
+	}
+
+	// Try accounts first, then sub_accounts
+	var allAccounts []AccountInfo
+	allAccounts = append(allAccounts, accountResp.Accounts...)
+	allAccounts = append(allAccounts, accountResp.SubAccounts...)
+
+	if len(allAccounts) == 0 {
+		return nil, fmt.Errorf("no account found for wallet address: %s (try depositing funds first at app.lighter.xyz)", t.walletAddr)
+	}
+
+	// Log all found accounts
+	logger.Infof("Found %d accounts (main: %d, sub: %d)", len(allAccounts), len(accountResp.Accounts), len(accountResp.SubAccounts))
+	for i, acc := range allAccounts {
+		logger.Infof("  Account[%d]: index=%d, collateral=%s", i, acc.AccountIndex, acc.Collateral)
+	}
+
+	account := &allAccounts[0]
+	// Use index field if account_index is 0
+	if account.AccountIndex == 0 && account.Index != 0 {
+		account.AccountIndex = account.Index
+	}
+
+	return account, nil
 }
 
 // checkClient Verify if API Key is correct
@@ -337,13 +398,22 @@ func (t *LighterTraderV2) GetTrades(startTime time.Time, limit int) ([]TradeReco
 		}
 	}
 
-	// Build request URL
-	startTimeMs := startTime.UnixMilli()
-	endpoint := fmt.Sprintf("%s/api/v1/trades?account_index=%d&start_time=%d",
-		t.baseURL, t.accountIndex, startTimeMs)
-	if limit > 0 {
-		endpoint = fmt.Sprintf("%s&limit=%d", endpoint, limit)
+	// Build request URL with correct parameters
+	// Required: sort_by, limit
+	// Optional: account_index, from (timestamp in milliseconds, -1 for no filter)
+	// Note: OpenAPI spec uses "from" not "var_from"
+	// Authentication: Use "auth" query parameter (not Authorization header)
+	if err := t.ensureAuthToken(); err != nil {
+		return nil, fmt.Errorf("failed to get auth token: %w", err)
 	}
+
+	// URL encode auth token (contains colons that need encoding)
+	encodedAuth := url.QueryEscape(t.authToken)
+	// Build endpoint - use from=-1 to get all trades (no time filter)
+	endpoint := fmt.Sprintf("%s/api/v1/trades?account_index=%d&sort_by=timestamp&sort_dir=desc&limit=%d&auth=%s",
+		t.baseURL, t.accountIndex, limit, encodedAuth)
+
+	logger.Infof("🔍 Calling Lighter GetTrades API: %s", endpoint[:min(len(endpoint), 150)]+"...")
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
@@ -366,14 +436,42 @@ func (t *LighterTraderV2) GetTrades(startTime time.Time, limit int) ([]TradeReco
 		return []TradeRecord{}, nil
 	}
 
+	// Debug: log raw response (first 500 chars)
+	logBody := string(body)
+	if len(logBody) > 500 {
+		logBody = logBody[:500] + "..."
+	}
+	logger.Infof("📋 Lighter trades API raw response: %s", logBody)
+
 	var response LighterTradeResponse
 	if err := json.Unmarshal(body, &response); err != nil {
+		logger.Infof("⚠️  Failed to parse trades response as object: %v", err)
 		var trades []LighterTrade
 		if err := json.Unmarshal(body, &trades); err != nil {
-			logger.Infof("⚠️  Failed to parse Lighter trades response: %v", err)
+			logger.Infof("⚠️  Failed to parse trades response as array: %v", err)
 			return []TradeRecord{}, nil
 		}
 		response.Trades = trades
+	}
+
+	if response.Code != 200 && response.Code != 0 {
+		logger.Infof("⚠️  Trades API returned non-success code: %d", response.Code)
+		return []TradeRecord{}, nil
+	}
+
+	// Build market_id -> symbol map
+	marketMap := make(map[int]string)
+	markets, err := t.fetchMarketList()
+	if err != nil {
+		logger.Infof("⚠️  Failed to fetch market list: %v, using fallback", err)
+		// Fallback market IDs (common ones)
+		marketMap[0] = "BTC"
+		marketMap[1] = "ETH"
+		marketMap[2] = "SOL"
+	} else {
+		for _, m := range markets {
+			marketMap[int(m.MarketID)] = m.Symbol
+		}
 	}
 
 	// Convert to unified TradeRecord format
@@ -381,26 +479,156 @@ func (t *LighterTraderV2) GetTrades(startTime time.Time, limit int) ([]TradeReco
 	for _, lt := range response.Trades {
 		price, _ := parseFloat(lt.Price)
 		qty, _ := parseFloat(lt.Size)
-		fee, _ := parseFloat(lt.Fee)
-		pnl, _ := parseFloat(lt.RealizedPnl)
 
+		// Calculate fee from taker_fee or maker_fee (they are int64, need conversion)
+		var fee float64
+		if lt.TakerFee > 0 {
+			fee = float64(lt.TakerFee) / 1e6 // Convert from smallest units (6 decimals for USDT)
+		} else if lt.MakerFee > 0 {
+			fee = float64(lt.MakerFee) / 1e6
+		}
+
+		// Get symbol from market_id
+		symbol := marketMap[lt.MarketID]
+		if symbol == "" {
+			symbol = fmt.Sprintf("MARKET%d", lt.MarketID)
+		}
+
+		// Determine side based on our account being bid (buyer) or ask (seller)
+		// IsMakerAsk: true = ask (seller) is maker, false = bid (buyer) is maker
 		var side string
-		if strings.ToLower(lt.Side) == "buy" {
+		var isTaker bool
+		if lt.BidAccountID == t.accountIndex {
 			side = "BUY"
-		} else {
+			isTaker = lt.IsMakerAsk // If maker is ask, then we (bid) are taker
+		} else if lt.AskAccountID == t.accountIndex {
 			side = "SELL"
+			isTaker = !lt.IsMakerAsk // If maker is NOT ask, then we (ask) are taker
+		} else {
+			// Neither bid nor ask is our account - skip this trade
+			continue
+		}
+
+		// Determine position side and action from position change
+		var positionSide, orderAction string
+		var posBefore float64
+		var signChanged bool
+
+		if isTaker {
+			posBefore, _ = parseFloat(lt.TakerPositionSizeBefore)
+			signChanged = lt.TakerPositionSignChanged
+		} else {
+			posBefore, _ = parseFloat(lt.MakerPositionSizeBefore)
+			signChanged = lt.MakerPositionSignChanged
+		}
+
+		// Determine order action based on:
+		// 1. posBefore: position BEFORE this trade (positive=LONG, negative=SHORT, 0=no position)
+		// 2. side: BUY or SELL
+		// 3. signChanged: whether position flipped direction
+		//
+		// Logic:
+		// - BUY when no position (posBefore ≈ 0): open_long
+		// - SELL when no position (posBefore ≈ 0): open_short
+		// - BUY when LONG (posBefore > 0): open_long (adding to long)
+		// - SELL when LONG (posBefore > 0): close_long (reducing long)
+		// - BUY when SHORT (posBefore < 0): close_short (reducing short)
+		// - SELL when SHORT (posBefore < 0): open_short (adding to short)
+		// - signChanged with position flip: split into close + open
+
+		const EPSILON = 0.0001
+		tradeTime := time.UnixMilli(lt.Timestamp).UTC()
+
+		// Calculate position after trade
+		var posAfter float64
+		if side == "SELL" {
+			posAfter = posBefore - qty
+		} else {
+			posAfter = posBefore + qty
+		}
+
+		// Check for position flip (signChanged AND both before/after have meaningful size)
+		if signChanged && math.Abs(posBefore) > EPSILON && math.Abs(posAfter) > EPSILON {
+			// Position FLIPPED - split into close + open
+			closeQty := math.Abs(posBefore)
+			openQty := math.Abs(posAfter)
+
+			var closeAction, closeSide, openAction, openSide string
+			if posBefore > 0 {
+				closeSide, closeAction = "LONG", "close_long"
+				openSide, openAction = "SHORT", "open_short"
+			} else {
+				closeSide, closeAction = "SHORT", "close_short"
+				openSide, openAction = "LONG", "open_long"
+			}
+
+			closeTrade := TradeRecord{
+				TradeID:      fmt.Sprintf("%d_close", lt.TradeID),
+				Symbol:       symbol,
+				Side:         side,
+				PositionSide: closeSide,
+				OrderAction:  closeAction,
+				Price:        price,
+				Quantity:     closeQty,
+				RealizedPnL:  0,
+				Fee:          fee * (closeQty / qty),
+				Time:         tradeTime.Add(-time.Millisecond),
+			}
+			result = append(result, closeTrade)
+
+			openTrade := TradeRecord{
+				TradeID:      fmt.Sprintf("%d_open", lt.TradeID),
+				Symbol:       symbol,
+				Side:         side,
+				PositionSide: openSide,
+				OrderAction:  openAction,
+				Price:        price,
+				Quantity:     openQty,
+				RealizedPnL:  0,
+				Fee:          fee * (openQty / qty),
+				Time:         tradeTime,
+			}
+			result = append(result, openTrade)
+
+			logger.Infof("  🔄 Flip: %s %.4f → %s %.4f", closeSide, closeQty, openSide, openQty)
+			continue
+		}
+
+		// Determine action based on position direction and trade side
+		if math.Abs(posBefore) < EPSILON {
+			// No position before → opening new position
+			if side == "BUY" {
+				positionSide, orderAction = "LONG", "open_long"
+			} else {
+				positionSide, orderAction = "SHORT", "open_short"
+			}
+		} else if posBefore > 0 {
+			// Was LONG
+			if side == "BUY" {
+				positionSide, orderAction = "LONG", "open_long" // Adding to long
+			} else {
+				positionSide, orderAction = "LONG", "close_long" // Reducing long
+			}
+		} else {
+			// Was SHORT (posBefore < 0)
+			if side == "BUY" {
+				positionSide, orderAction = "SHORT", "close_short" // Reducing short
+			} else {
+				positionSide, orderAction = "SHORT", "open_short" // Adding to short
+			}
 		}
 
 		trade := TradeRecord{
-			TradeID:      lt.TradeID,
-			Symbol:       lt.Symbol,
+			TradeID:      fmt.Sprintf("%d", lt.TradeID),
+			Symbol:       symbol,
 			Side:         side,
-			PositionSide: "BOTH",
+			PositionSide: positionSide,
+			OrderAction:  orderAction,
 			Price:        price,
 			Quantity:     qty,
-			RealizedPnL:  pnl,
+			RealizedPnL:  0, // Not available in API
 			Fee:          fee,
-			Time:         time.UnixMilli(lt.Timestamp),
+			Time:         time.UnixMilli(lt.Timestamp).UTC(),
 		}
 		result = append(result, trade)
 	}

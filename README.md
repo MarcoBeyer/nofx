@@ -4,7 +4,6 @@
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Backed by Amber.ac](https://img.shields.io/badge/Backed%20by-Amber.ac-orange.svg)](https://amber.ac)
 
 | CONTRIBUTOR AIRDROP PROGRAM |
 |:----------------------------------:|
@@ -15,9 +14,18 @@
 
 ---
 
-## AI-Powered Crypto Trading Platform
+## AI-Powered Multi-Asset Trading Platform
 
-**NOFX** is an open-source AI trading system that lets you run multiple AI models to trade crypto futures automatically. Configure strategies through a web interface, monitor performance in real-time, and let AI agents compete to find the best trading approach.
+**NOFX** is an open-source AI trading system that lets you run multiple AI models to trade automatically. Configure strategies through a web interface, monitor performance in real-time, and let AI agents compete to find the best trading approach.
+
+### Supported Markets
+
+| Market | Trading | Status |
+|--------|---------|--------|
+| 🪙 **Crypto** | BTC, ETH, Altcoins | ✅ Supported |
+| 📈 **US Stocks** | AAPL, TSLA, NVDA, etc. | ✅ Supported |
+| 💱 **Forex** | EUR/USD, GBP/USD, etc. | ✅ Supported |
+| 🥇 **Metals** | Gold, Silver | ✅ Supported |
 
 ### Core Features
 
@@ -28,8 +36,6 @@
 - **AI Competition Mode**: Multiple AI traders compete in real-time, track performance side by side
 - **Web-Based Config**: No JSON editing - configure everything through the web interface
 - **Real-Time Dashboard**: Live positions, P/L tracking, AI decision logs with Chain of Thought
-
-### Backed by [Amber.ac](https://amber.ac)
 
 ### Core Team
 
@@ -44,36 +50,12 @@ Join our Telegram developer community: **[NOFX Developer Community](https://t.me
 
 ---
 
-## Screenshots
+## Before You Begin
 
-### Config Page
-| AI Models & Exchanges | Traders List |
-|:---:|:---:|
-| <img src="screenshots/config-ai-exchanges.png" width="400" alt="Config - AI Models & Exchanges"/> | <img src="screenshots/config-traders-list.png" width="400" alt="Config - Traders List"/> |
+To use NOFX, you'll need:
 
-### Competition & Backtest
-| Competition Mode | Backtest Lab |
-|:---:|:---:|
-| <img src="screenshots/competition-page.png" width="400" alt="Competition Page"/> | <img src="screenshots/backtest-lab.png" width="400" alt="Backtest Lab"/> |
-
-### Dashboard
-| Overview | Market Chart |
-|:---:|:---:|
-| <img src="screenshots/dashboard-page.png" width="400" alt="Dashboard Overview"/> | <img src="screenshots/dashboard-market-chart.png" width="400" alt="Dashboard Market Chart"/> |
-
-| Positions | Trader Details |
-|:---:|:---:|
-| <img src="screenshots/dashboard-positions.png" width="400" alt="Dashboard Positions"/> | <img src="screenshots/details-page.png" width="400" alt="Trader Details"/> |
-
-### Strategy Studio
-| Strategy Editor | Indicators Config |
-|:---:|:---:|
-| <img src="screenshots/strategy-studio.png" width="400" alt="Strategy Studio"/> | <img src="screenshots/strategy-indicators.png" width="400" alt="Strategy Indicators"/> |
-
-### Debate Arena
-| AI Debate Session | Create Debate |
-|:---:|:---:|
-| <img src="screenshots/debate-arena.png" width="400" alt="Debate Arena"/> | <img src="screenshots/debate-create.png" width="400" alt="Create Debate"/> |
+1. **Exchange Account** - Register on any supported exchange and create API credentials with trading permissions
+2. **AI Model API Key** - Get from any supported provider (DeepSeek recommended for cost-effectiveness)
 
 ---
 
@@ -94,7 +76,7 @@ Join our Telegram developer community: **[NOFX Developer Community](https://t.me
 |----------|--------|-------------------------|
 | **Hyperliquid** | ✅ Supported | [Register](https://app.hyperliquid.xyz/join/AITRADING) |
 | **Aster DEX** | ✅ Supported | [Register](https://www.asterdex.com/en/referral/fdfc0e) |
-| **Lighter** | ✅ Supported | [Register](https://lighter.xyz) |
+| **Lighter** | ✅ Supported | [Register](https://app.lighter.xyz/?referral=68151432) |
 
 ---
 
@@ -112,16 +94,61 @@ Join our Telegram developer community: **[NOFX Developer Community](https://t.me
 
 ---
 
+## Screenshots
+
+### Config Page
+| AI Models & Exchanges | Traders List |
+|:---:|:---:|
+| <img src="screenshots/config-ai-exchanges.png" width="400" alt="Config - AI Models & Exchanges"/> | <img src="screenshots/config-traders-list.png" width="400" alt="Config - Traders List"/> |
+
+### Competition & Backtest
+| Competition Mode | Backtest Lab |
+|:---:|:---:|
+| <img src="screenshots/competition-page.png" width="400" alt="Competition Page"/> | <img src="screenshots/backtest-lab.png" width="400" alt="Backtest Lab"/> |
+
+### Dashboard
+| Overview | Market Chart |
+|:---:|:---:|
+| <img src="screenshots/dashboard-page.png" width="400" alt="Dashboard Overview"/> | <img src="screenshots/dashboard-market-chart.png" width="400" alt="Dashboard Market Chart"/> |
+
+| Trading Stats | Position History |
+|:---:|:---:|
+| <img src="screenshots/dashboard-trading-stats.png" width="400" alt="Trading Stats"/> | <img src="screenshots/dashboard-position-history.png" width="400" alt="Position History"/> |
+
+| Positions | Trader Details |
+|:---:|:---:|
+| <img src="screenshots/dashboard-positions.png" width="400" alt="Dashboard Positions"/> | <img src="screenshots/details-page.png" width="400" alt="Trader Details"/> |
+
+### Strategy Studio
+| Strategy Editor | Indicators Config |
+|:---:|:---:|
+| <img src="screenshots/strategy-studio.png" width="400" alt="Strategy Studio"/> | <img src="screenshots/strategy-indicators.png" width="400" alt="Strategy Indicators"/> |
+
+### Debate Arena
+| AI Debate Session | Create Debate |
+|:---:|:---:|
+| <img src="screenshots/debate-arena.png" width="400" alt="Debate Arena"/> | <img src="screenshots/debate-create.png" width="400" alt="Create Debate"/> |
+
+---
+
 ## Quick Start
 
-### One-Click Install (Recommended)
+### One-Click Install (Local/Server)
 
 **Linux / macOS:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
 ```
 
-That's it! Open **http://localhost:3000** in your browser.
+That's it! Open **http://127.0.0.1:3000** in your browser.
+
+### One-Click Cloud Deploy (Railway)
+
+Deploy to Railway with one click - no server setup required:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/nofx?referralCode=nofx)
+
+After deployment, Railway will provide a public URL to access your NOFX instance.
 
 ### Docker Compose (Manual)
 
@@ -131,7 +158,7 @@ curl -O https://raw.githubusercontent.com/NoFxAiOS/nofx/main/docker-compose.prod
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Access Web Interface: **http://localhost:3000**
+Access Web Interface: **http://127.0.0.1:3000**
 
 ```bash
 # Management commands
@@ -140,6 +167,16 @@ docker compose -f docker-compose.prod.yml restart    # Restart
 docker compose -f docker-compose.prod.yml down       # Stop
 docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d  # Update
 ```
+
+### Keeping Updated
+
+> **💡 Updates are frequent.** Run this command daily to stay current with the latest features and fixes:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+```
+
+This one-liner pulls the latest official images and restarts services automatically.
 
 ### Manual Installation (For Developers)
 
@@ -182,7 +219,88 @@ cd web
 npm run dev
 ```
 
-Access Web Interface: **http://localhost:3000**
+Access Web Interface: **http://127.0.0.1:3000**
+
+---
+
+## Windows Installation
+
+### Method 1: Docker Desktop (Recommended)
+
+1. **Install Docker Desktop**
+   - Download from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
+   - Run the installer and restart your computer
+   - Start Docker Desktop and wait for it to be ready
+
+2. **Run NOFX**
+   ```powershell
+   # Open PowerShell and run:
+   curl -o docker-compose.prod.yml https://raw.githubusercontent.com/NoFxAiOS/nofx/main/docker-compose.prod.yml
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+3. **Access**: Open **http://127.0.0.1:3000** in your browser
+
+### Method 2: WSL2 (For Development)
+
+1. **Install WSL2**
+   ```powershell
+   # Open PowerShell as Administrator
+   wsl --install
+   ```
+   Restart your computer after installation.
+
+2. **Install Ubuntu from Microsoft Store**
+   - Open Microsoft Store
+   - Search "Ubuntu 22.04" and install
+   - Launch Ubuntu and set up username/password
+
+3. **Install Dependencies in WSL2**
+   ```bash
+   # Update system
+   sudo apt update && sudo apt upgrade -y
+
+   # Install Go
+   wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+   sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+   source ~/.bashrc
+
+   # Install Node.js
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # Install TA-Lib
+   sudo apt-get install -y libta-lib0-dev
+
+   # Install Git
+   sudo apt-get install -y git
+   ```
+
+4. **Clone and Run NOFX**
+   ```bash
+   git clone https://github.com/NoFxAiOS/nofx.git
+   cd nofx
+
+   # Build and run backend
+   go build -o nofx && ./nofx
+
+   # In another terminal, run frontend
+   cd web && npm install && npm run dev
+   ```
+
+5. **Access**: Open **http://127.0.0.1:3000** in Windows browser
+
+### Method 3: Docker in WSL2 (Best of Both Worlds)
+
+1. **Install Docker Desktop with WSL2 backend**
+   - During Docker Desktop installation, enable "Use WSL 2 based engine"
+   - In Docker Desktop Settings → Resources → WSL Integration, enable your Linux distro
+
+2. **Run from WSL2 terminal**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+   ```
 
 ---
 
@@ -309,6 +427,19 @@ sudo apt-get install libta-lib0-dev
 ### Frontend can't connect to backend
 - Ensure backend is running on http://localhost:8080
 - Check if port is occupied
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[Architecture Overview](docs/architecture/README.md)** | System design and module index |
+| **[Strategy Module](docs/architecture/STRATEGY_MODULE.md)** | Coin selection, data assembly, AI prompts, execution |
+| **[Backtest Module](docs/architecture/BACKTEST_MODULE.md)** | Historical simulation, metrics, checkpoint/resume |
+| **[Debate Module](docs/architecture/DEBATE_MODULE.md)** | Multi-AI debate, voting consensus, auto-execution |
+| **[FAQ](docs/faq/README.md)** | Frequently asked questions |
+| **[Getting Started](docs/getting-started/README.md)** | Deployment guide |
 
 ---
 

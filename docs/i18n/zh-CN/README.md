@@ -4,7 +4,8 @@
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Backed by Amber.ac](https://img.shields.io/badge/Backed%20by-Amber.ac-orange.svg)](https://amber.ac)
+
+> **语言声明：** 本中文版本文档仅为方便海外华人社区阅读而提供，不代表本软件面向中国大陆、香港、澳门或台湾地区用户开放。如您位于上述地区，请勿使用本软件。
 
 | 贡献者空投计划 |
 |:----------------------------------:|
@@ -28,8 +29,6 @@
 - **Web 配置**: 无需编辑 JSON - 通过 Web 界面完成所有配置
 - **实时仪表板**: 实时持仓、盈亏追踪、AI 决策日志与思维链
 
-### 由 [Amber.ac](https://amber.ac) 支持
-
 ### 核心团队
 
 - **Tinkle** - [@Web3Tinkle](https://x.com/Web3Tinkle)
@@ -40,6 +39,50 @@
 ## 开发者社区
 
 加入我们的 Telegram 开发者社区: **[NOFX 开发者社区](https://t.me/nofx_dev_community)**
+
+---
+
+## 开始之前
+
+使用 NOFX 你需要准备:
+
+1. **交易所账户** - 在任意支持的交易所注册并创建具有交易权限的 API 凭证
+2. **AI 模型 API Key** - 从任意支持的提供商获取（推荐 DeepSeek，性价比最高）
+
+---
+
+## 支持的交易所
+
+### CEX (中心化交易所)
+
+| 交易所 | 状态 | 注册 (手续费折扣) |
+|----------|--------|-------------------------|
+| **Binance** | ✅ 已支持 | [注册](https://www.binance.com/join?ref=NOFXENG) |
+| **Bybit** | ✅ 已支持 | [注册](https://partner.bybit.com/b/83856) |
+| **OKX** | ✅ 已支持 | [注册](https://www.okx.com/join/1865360) |
+| **Bitget** | ✅ 已支持 | [注册](https://www.bitget.com/referral/register?from=referral&clacCode=c8a43172) |
+
+### Perp-DEX (去中心化永续交易所)
+
+| 交易所 | 状态 | 注册 (手续费折扣) |
+|----------|--------|-------------------------|
+| **Hyperliquid** | ✅ 已支持 | [注册](https://app.hyperliquid.xyz/join/AITRADING) |
+| **Aster DEX** | ✅ 已支持 | [注册](https://www.asterdex.com/en/referral/fdfc0e) |
+| **Lighter** | ✅ 已支持 | [注册](https://app.lighter.xyz/?referral=68151432) |
+
+---
+
+## 支持的 AI 模型
+
+| AI 模型 | 状态 | 获取 API Key |
+|----------|--------|-------------|
+| **DeepSeek** | ✅ 已支持 | [获取 API Key](https://platform.deepseek.com) |
+| **通义千问** | ✅ 已支持 | [获取 API Key](https://dashscope.console.aliyun.com) |
+| **OpenAI (GPT)** | ✅ 已支持 | [获取 API Key](https://platform.openai.com) |
+| **Claude** | ✅ 已支持 | [获取 API Key](https://console.anthropic.com) |
+| **Gemini** | ✅ 已支持 | [获取 API Key](https://aistudio.google.com) |
+| **Grok** | ✅ 已支持 | [获取 API Key](https://console.x.ai) |
+| **Kimi** | ✅ 已支持 | [获取 API Key](https://platform.moonshot.cn) |
 
 ---
 
@@ -59,50 +102,24 @@
 
 ---
 
-## 支持的交易所
-
-### CEX (中心化交易所)
-
-| 交易所 | 状态 | 注册 (手续费折扣) |
-|----------|--------|-------------------------|
-| **Binance** | ✅ 已支持 | [注册](https://www.binance.com/join?ref=NOFXENG) |
-| **Bybit** | ✅ 已支持 | [注册](https://partner.bybit.com/b/83856) |
-| **OKX** | ✅ 已支持 | [注册](https://www.okx.com/join/1865360) |
-
-### Perp-DEX (去中心化永续交易所)
-
-| 交易所 | 状态 | 注册 (手续费折扣) |
-|----------|--------|-------------------------|
-| **Hyperliquid** | ✅ 已支持 | [注册](https://app.hyperliquid.xyz/join/AITRADING) |
-| **Aster DEX** | ✅ 已支持 | [注册](https://www.asterdex.com/en/referral/fdfc0e) |
-| **Lighter** | ✅ 已支持 | [注册](https://lighter.xyz) |
-
----
-
-## 支持的 AI 模型
-
-| AI 模型 | 状态 | 获取 API Key |
-|----------|--------|-------------|
-| **DeepSeek** | ✅ 已支持 | [获取 API Key](https://platform.deepseek.com) |
-| **通义千问** | ✅ 已支持 | [获取 API Key](https://dashscope.console.aliyun.com) |
-| **OpenAI (GPT)** | ✅ 已支持 | [获取 API Key](https://platform.openai.com) |
-| **Claude** | ✅ 已支持 | [获取 API Key](https://console.anthropic.com) |
-| **Gemini** | ✅ 已支持 | [获取 API Key](https://aistudio.google.com) |
-| **Grok** | ✅ 已支持 | [获取 API Key](https://console.x.ai) |
-| **Kimi** | ✅ 已支持 | [获取 API Key](https://platform.moonshot.cn) |
-
----
-
 ## 快速开始
 
-### 一键安装 (推荐)
+### 一键安装 (本地/服务器)
 
 **Linux / macOS:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
 ```
 
-完成！打开浏览器访问 **http://localhost:3000**
+完成！打开浏览器访问 **http://127.0.0.1:3000**
+
+### 一键云部署 (Railway)
+
+一键部署到 Railway - 无需自己搭建服务器：
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/nofx?referralCode=nofx)
+
+部署后，Railway 会提供一个公网 URL 访问你的 NOFX 实例。
 
 ### Docker Compose (手动)
 
@@ -112,7 +129,7 @@ curl -O https://raw.githubusercontent.com/NoFxAiOS/nofx/main/docker-compose.prod
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-访问 Web 界面: **http://localhost:3000**
+访问 Web 界面: **http://127.0.0.1:3000**
 
 ```bash
 # 管理命令
@@ -121,6 +138,16 @@ docker compose -f docker-compose.prod.yml restart    # 重启
 docker compose -f docker-compose.prod.yml down       # 停止
 docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d  # 更新
 ```
+
+### 保持更新
+
+> **💡 更新频繁。** 每天运行以下命令以获取最新功能和修复：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+```
+
+此命令会拉取最新官方镜像并自动重启服务。
 
 ### 手动安装 (开发者)
 
@@ -163,7 +190,88 @@ cd web
 npm run dev
 ```
 
-访问 Web 界面: **http://localhost:3000**
+访问 Web 界面: **http://127.0.0.1:3000**
+
+---
+
+## Windows 安装
+
+### 方法一：Docker Desktop（推荐）
+
+1. **安装 Docker Desktop**
+   - 从 [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) 下载
+   - 运行安装程序并重启电脑
+   - 启动 Docker Desktop 并等待就绪
+
+2. **运行 NOFX**
+   ```powershell
+   # 打开 PowerShell 运行：
+   curl -o docker-compose.prod.yml https://raw.githubusercontent.com/NoFxAiOS/nofx/main/docker-compose.prod.yml
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+3. **访问**：在浏览器打开 **http://127.0.0.1:3000**
+
+### 方法二：WSL2（适合开发）
+
+1. **安装 WSL2**
+   ```powershell
+   # 以管理员身份打开 PowerShell
+   wsl --install
+   ```
+   安装完成后重启电脑。
+
+2. **从 Microsoft Store 安装 Ubuntu**
+   - 打开 Microsoft Store
+   - 搜索 "Ubuntu 22.04" 并安装
+   - 启动 Ubuntu 并设置用户名/密码
+
+3. **在 WSL2 中安装依赖**
+   ```bash
+   # 更新系统
+   sudo apt update && sudo apt upgrade -y
+
+   # 安装 Go
+   wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+   sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+   source ~/.bashrc
+
+   # 安装 Node.js
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # 安装 TA-Lib
+   sudo apt-get install -y libta-lib0-dev
+
+   # 安装 Git
+   sudo apt-get install -y git
+   ```
+
+4. **克隆并运行 NOFX**
+   ```bash
+   git clone https://github.com/NoFxAiOS/nofx.git
+   cd nofx
+
+   # 构建并运行后端
+   go build -o nofx && ./nofx
+
+   # 在另一个终端运行前端
+   cd web && npm install && npm run dev
+   ```
+
+5. **访问**：在 Windows 浏览器打开 **http://127.0.0.1:3000**
+
+### 方法三：WSL2 + Docker（两全其美）
+
+1. **安装 Docker Desktop 并启用 WSL2 后端**
+   - Docker Desktop 安装时勾选 "Use WSL 2 based engine"
+   - 在 Docker Desktop 设置 → Resources → WSL Integration 中启用你的 Linux 发行版
+
+2. **在 WSL2 终端运行**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+   ```
 
 ---
 
@@ -276,6 +384,19 @@ sudo apt-get install libta-lib0-dev
 ### 前端无法连接后端
 - 确保后端运行在 http://localhost:8080
 - 检查端口是否被占用
+
+---
+
+## 文档
+
+| 文档 | 描述 |
+|------|------|
+| **[架构概览](../../architecture/README.zh-CN.md)** | 系统设计和模块索引 |
+| **[策略模块](../../architecture/STRATEGY_MODULE.md)** | 币种选择、数据组装、AI 提示词、执行 |
+| **[回测模块](../../architecture/BACKTEST_MODULE.md)** | 历史模拟、指标计算、断点续测 |
+| **[辩论模块](../../architecture/DEBATE_MODULE.md)** | 多 AI 辩论、投票共识、自动执行 |
+| **[常见问题](../../faq/README.md)** | FAQ |
+| **[快速开始](../../getting-started/README.zh-CN.md)** | 部署指南 |
 
 ---
 

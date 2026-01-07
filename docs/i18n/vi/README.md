@@ -22,13 +22,55 @@
 - **Cấu Hình Web**: Không cần chỉnh sửa JSON - cấu hình mọi thứ qua giao diện web
 - **Dashboard Thời Gian Thực**: Vị thế trực tiếp, theo dõi P/L, nhật ký quyết định AI với chuỗi suy luận
 
-### Được hỗ trợ bởi [Amber.ac](https://amber.ac)
-
 > **Cảnh Báo Rủi Ro**: Hệ thống này mang tính thử nghiệm. Giao dịch tự động AI có rủi ro đáng kể. Chỉ nên sử dụng cho mục đích học tập/nghiên cứu hoặc kiểm tra với số tiền nhỏ!
 
 ## Cộng Đồng Nhà Phát Triển
 
 Tham gia cộng đồng Telegram: **[NOFX Developer Community](https://t.me/nofx_dev_community)**
+
+---
+
+## Trước Khi Bắt Đầu
+
+Để sử dụng NOFX, bạn cần:
+
+1. **Tài khoản sàn giao dịch** - Đăng ký trên sàn được hỗ trợ và tạo API key với quyền giao dịch
+2. **API Key mô hình AI** - Lấy từ nhà cung cấp được hỗ trợ (khuyến nghị DeepSeek để tiết kiệm chi phí)
+
+---
+
+## Sàn Giao Dịch Được Hỗ Trợ
+
+### CEX (Sàn Tập Trung)
+
+| Sàn | Trạng thái | Đăng ký (Giảm phí) |
+|----------|--------|-------------------------|
+| **Binance** | ✅ Hỗ trợ | [Đăng ký](https://www.binance.com/join?ref=NOFXENG) |
+| **Bybit** | ✅ Hỗ trợ | [Đăng ký](https://partner.bybit.com/b/83856) |
+| **OKX** | ✅ Hỗ trợ | [Đăng ký](https://www.okx.com/join/1865360) |
+| **Bitget** | ✅ Hỗ trợ | [Đăng ký](https://www.bitget.com/referral/register?from=referral&clacCode=c8a43172) |
+
+### Perp-DEX (Sàn Phi Tập Trung)
+
+| Sàn | Trạng thái | Đăng ký (Giảm phí) |
+|----------|--------|-------------------------|
+| **Hyperliquid** | ✅ Hỗ trợ | [Đăng ký](https://app.hyperliquid.xyz/join/AITRADING) |
+| **Aster DEX** | ✅ Hỗ trợ | [Đăng ký](https://www.asterdex.com/en/referral/fdfc0e) |
+| **Lighter** | ✅ Hỗ trợ | [Đăng ký](https://app.lighter.xyz/?referral=68151432) |
+
+---
+
+## Mô Hình AI Được Hỗ Trợ
+
+| Mô hình AI | Trạng thái | Lấy API Key |
+|----------|--------|-------------|
+| **DeepSeek** | ✅ Hỗ trợ | [Lấy API Key](https://platform.deepseek.com) |
+| **Qwen** | ✅ Hỗ trợ | [Lấy API Key](https://dashscope.console.aliyun.com) |
+| **OpenAI (GPT)** | ✅ Hỗ trợ | [Lấy API Key](https://platform.openai.com) |
+| **Claude** | ✅ Hỗ trợ | [Lấy API Key](https://console.anthropic.com) |
+| **Gemini** | ✅ Hỗ trợ | [Lấy API Key](https://aistudio.google.com) |
+| **Grok** | ✅ Hỗ trợ | [Lấy API Key](https://console.x.ai) |
+| **Kimi** | ✅ Hỗ trợ | [Lấy API Key](https://platform.moonshot.cn) |
 
 ---
 
@@ -44,6 +86,16 @@ chmod +x ./start.sh
 ```
 
 Truy cập giao diện Web: **http://localhost:3000**
+
+### Cập Nhật Phiên Bản Mới
+
+> **💡 Cập nhật thường xuyên.** Chạy lệnh này hàng ngày để nhận các tính năng và bản sửa lỗi mới nhất:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+```
+
+Lệnh này tải về image chính thức mới nhất và tự động khởi động lại dịch vụ.
 
 ### Tùy chọn 2: Cài đặt Thủ công
 

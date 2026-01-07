@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"nofx/debate"
-	"nofx/decision"
+	"nofx/kernel"
 	"nofx/logger"
 	"nofx/store"
 	"nofx/trader"
@@ -19,7 +19,7 @@ type TraderExecutorAdapter struct {
 }
 
 // ExecuteDecision executes a trading decision
-func (a *TraderExecutorAdapter) ExecuteDecision(d *decision.Decision) error {
+func (a *TraderExecutorAdapter) ExecuteDecision(d *kernel.Decision) error {
 	return a.autoTrader.ExecuteDecision(d)
 }
 
@@ -44,6 +44,7 @@ type CompetitionCache struct {
 // TraderManager manages multiple trader instances
 type TraderManager struct {
 	traders          map[string]*trader.AutoTrader // key: trader ID
+	loadErrors       map[string]error              // key: trader ID, stores last load error
 	competitionCache *CompetitionCache
 	mu               sync.RWMutex
 }
@@ -51,11 +52,19 @@ type TraderManager struct {
 // NewTraderManager creates a trader manager
 func NewTraderManager() *TraderManager {
 	return &TraderManager{
-		traders: make(map[string]*trader.AutoTrader),
+		traders:    make(map[string]*trader.AutoTrader),
+		loadErrors: make(map[string]error),
 		competitionCache: &CompetitionCache{
 			data: make(map[string]interface{}),
 		},
 	}
+}
+
+// GetLoadError returns the last load error for a trader
+func (tm *TraderManager) GetLoadError(traderID string) error {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+	return tm.loadErrors[traderID]
 }
 
 // GetTrader retrieves a trader by ID
@@ -401,11 +410,18 @@ func (tm *TraderManager) GetTopTradersData() (map[string]interface{}, error) {
 
 // RemoveTrader removes a trader from memory (does not affect database)
 // Used to force reload when updating trader configuration
+// If the trader is running, it will be stopped first
 func (tm *TraderManager) RemoveTrader(traderID string) {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	if _, exists := tm.traders[traderID]; exists {
+	if t, exists := tm.traders[traderID]; exists {
+		// Stop the trader if it's running (this ensures the goroutine exits)
+		status := t.GetStatus()
+		if isRunning, ok := status["is_running"].(bool); ok && isRunning {
+			logger.Infof("⏹ Stopping trader %s before removing from memory...", traderID)
+			t.Stop()
+		}
 		delete(tm.traders, traderID)
 		logger.Infof("✓ Trader %s removed from memory", traderID)
 	}
@@ -441,7 +457,7 @@ func (tm *TraderManager) LoadUserTradersFromStore(st *store.Store, userID string
 	for _, traderCfg := range traders {
 		// Check if this trader is already loaded
 		if _, exists := tm.traders[traderCfg.ID]; exists {
-			logger.Infof("⚠️ Trader %s already loaded, skipping", traderCfg.Name)
+			// Trader already loaded - this is normal, no need to log
 			continue
 		}
 
@@ -496,6 +512,11 @@ func (tm *TraderManager) LoadUserTradersFromStore(st *store.Store, userID string
 		err = tm.addTraderFromStore(traderCfg, aiModelCfg, exchangeCfg, st)
 		if err != nil {
 			logger.Infof("❌ Failed to load trader %s: %v", traderCfg.Name, err)
+			// Save error for later retrieval
+			tm.loadErrors[traderCfg.ID] = err
+		} else {
+			// Clear any previous error on success
+			delete(tm.loadErrors, traderCfg.ID)
 		}
 	}
 
@@ -592,7 +613,7 @@ func (tm *TraderManager) LoadTradersFromStore(st *store.Store) error {
 			continue
 		}
 
-		// Add to TraderManager (coinPoolURL/oiTopURL already obtained from strategy config)
+		// Add to TraderManager (ai500APIURL/oiTopAPIURL already obtained from strategy config)
 		err = tm.addTraderFromStore(traderCfg, aiModelCfg, exchangeCfg, st)
 		if err != nil {
 			logger.Infof("❌ Failed to add trader %s: %v", traderCfg.Name, err)
@@ -627,7 +648,7 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		return fmt.Errorf("trader %s has no strategy configured", traderCfg.Name)
 	}
 
-	// Build AutoTraderConfig (coinPoolURL/oiTopURL obtained from strategy config, used in StrategyEngine)
+	// Build AutoTraderConfig (ai500APIURL/oiTopAPIURL obtained from strategy config, used in StrategyEngine)
 	traderConfig := trader.AutoTraderConfig{
 		ID:                    traderCfg.ID,
 		Name:                  traderCfg.Name,
@@ -650,44 +671,49 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		StrategyConfig:       strategyConfig,
 	}
 
-	// Set API keys based on exchange type
+	logger.Infof("📊 Loading trader %s: ScanIntervalMinutes=%d (from DB), ScanInterval=%v",
+		traderCfg.Name, traderCfg.ScanIntervalMinutes, traderConfig.ScanInterval)
+
+	// Set API keys based on exchange type (convert EncryptedString to string)
 	switch exchangeCfg.ExchangeType {
 	case "binance":
-		traderConfig.BinanceAPIKey = exchangeCfg.APIKey
-		traderConfig.BinanceSecretKey = exchangeCfg.SecretKey
+		traderConfig.BinanceAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.BinanceSecretKey = string(exchangeCfg.SecretKey)
 	case "bybit":
-		traderConfig.BybitAPIKey = exchangeCfg.APIKey
-		traderConfig.BybitSecretKey = exchangeCfg.SecretKey
+		traderConfig.BybitAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.BybitSecretKey = string(exchangeCfg.SecretKey)
 	case "okx":
-		traderConfig.OKXAPIKey = exchangeCfg.APIKey
-		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
-		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
+		traderConfig.OKXAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.OKXSecretKey = string(exchangeCfg.SecretKey)
+		traderConfig.OKXPassphrase = string(exchangeCfg.Passphrase)
 	case "bitget":
-		traderConfig.BitgetAPIKey = exchangeCfg.APIKey
-		traderConfig.BitgetSecretKey = exchangeCfg.SecretKey
-		traderConfig.BitgetPassphrase = exchangeCfg.Passphrase
+		traderConfig.BitgetAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.BitgetSecretKey = string(exchangeCfg.SecretKey)
+		traderConfig.BitgetPassphrase = string(exchangeCfg.Passphrase)
 	case "hyperliquid":
-		traderConfig.HyperliquidPrivateKey = exchangeCfg.APIKey
+		traderConfig.HyperliquidPrivateKey = string(exchangeCfg.APIKey)
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
 	case "aster":
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
-		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+		traderConfig.AsterPrivateKey = string(exchangeCfg.AsterPrivateKey)
 	case "lighter":
-		traderConfig.LighterPrivateKey = exchangeCfg.LighterPrivateKey
+		traderConfig.LighterPrivateKey = string(exchangeCfg.LighterPrivateKey)
 		traderConfig.LighterWalletAddr = exchangeCfg.LighterWalletAddr
+		traderConfig.LighterAPIKeyPrivateKey = string(exchangeCfg.LighterAPIKeyPrivateKey)
+		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
 		traderConfig.LighterTestnet = exchangeCfg.Testnet
 	}
 
-	// Set API keys based on AI model
+	// Set API keys based on AI model (convert EncryptedString to string)
 	switch aiModelCfg.Provider {
 	case "qwen":
-		traderConfig.QwenKey = aiModelCfg.APIKey
+		traderConfig.QwenKey = string(aiModelCfg.APIKey)
 	case "deepseek":
-		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+		traderConfig.DeepSeekKey = string(aiModelCfg.APIKey)
 	default:
 		// For other providers (grok, openai, claude, gemini, kimi, etc.), use CustomAPIKey
-		traderConfig.CustomAPIKey = aiModelCfg.APIKey
+		traderConfig.CustomAPIKey = string(aiModelCfg.APIKey)
 	}
 
 	// Create trader instance

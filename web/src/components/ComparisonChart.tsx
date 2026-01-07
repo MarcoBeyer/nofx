@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Line,
   XAxis,
@@ -19,24 +19,39 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
 import { BarChart3, TrendingUp, TrendingDown, Zap } from 'lucide-react'
 
+// Time period options: 1D, 3D, 7D, 30D, All
+const TIME_PERIODS = [
+  { key: '1d', hours: 24, label: { en: '1D', zh: '1天' } },
+  { key: '3d', hours: 72, label: { en: '3D', zh: '3天' } },
+  { key: '7d', hours: 168, label: { en: '7D', zh: '7天' } },
+  { key: '30d', hours: 720, label: { en: '30D', zh: '30天' } },
+  { key: 'all', hours: 0, label: { en: 'All', zh: '全部' } },
+]
+
 interface ComparisonChartProps {
   traders: CompetitionTraderData[]
 }
 
 export function ComparisonChart({ traders }: ComparisonChartProps) {
   const { language } = useLanguage()
+  const [selectedPeriod, setSelectedPeriod] = useState('7d') // Default to 7 days
 
-  // Generate unique key for SWR
+  // Get hours for selected period
+  const selectedHours = TIME_PERIODS.find(p => p.key === selectedPeriod)?.hours || 0
+
+  // Generate unique key for SWR (include period and hours)
   const tradersKey = traders
     .map((t) => t.trader_id)
     .sort()
     .join(',')
 
   const { data: allTraderHistories, isLoading } = useSWR(
-    traders.length > 0 ? `all-equity-histories-${tradersKey}` : null,
+    traders.length > 0 ? `equity-histories-${tradersKey}-${selectedHours}` : null,
     async () => {
+      console.log('Fetching equity history with hours:', selectedHours)
       const traderIds = traders.map((trader) => trader.trader_id)
-      const batchData = await api.getEquityHistoryBatch(traderIds)
+      const batchData = await api.getEquityHistoryBatch(traderIds, selectedHours)
+      console.log('Received data points:', Object.values(batchData.histories || {}).map((h: any) => h?.length))
       return traders.map((trader) => {
         const history = batchData.histories?.[trader.trader_id] || []
 
@@ -56,7 +71,8 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
     {
       refreshInterval: 30000,
       revalidateOnFocus: false,
-      dedupingInterval: 20000,
+      dedupingInterval: 0, // No deduping for immediate response
+      keepPreviousData: false,
     }
   )
 
@@ -76,58 +92,96 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
       {
         timestamp: string
         time: string
-        traders: Map<string, { pnl_pct: number; equity: number }>
+        traders: Map<string, { pnl_pct: number; equity: number; originalTs?: string }>
       }
     >()
+
+    // Helper function to normalize timestamp to nearest minute
+    const normalizeTimestamp = (ts: string): string => {
+      const date = new Date(ts)
+      date.setSeconds(0, 0) // Round to minute
+      return date.toISOString()
+    }
 
     traderHistories.forEach((history, index) => {
       const trader = traders[index]
       if (!history.data) return
 
       history.data.forEach((point: any) => {
-        const ts = point.timestamp
+        // Normalize timestamp to nearest minute so different traders' data aligns
+        const normalizedTs = normalizeTimestamp(point.timestamp)
 
-        if (!timestampMap.has(ts)) {
-          const time = new Date(ts).toLocaleTimeString('zh-CN', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-          timestampMap.set(ts, {
-            timestamp: ts,
+        if (!timestampMap.has(normalizedTs)) {
+          const date = new Date(normalizedTs)
+          // Format time based on selected period
+          let time: string
+          if (selectedHours <= 24) {
+            // 1 day: show HH:mm
+            time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+          } else if (selectedHours <= 72) {
+            // 3 days: show MM/DD HH:mm
+            time = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+          } else {
+            // 7+ days: show MM/DD
+            time = `${date.getMonth() + 1}/${date.getDate()}`
+          }
+          timestampMap.set(normalizedTs, {
+            timestamp: normalizedTs,
             time,
             traders: new Map(),
           })
         }
 
-        timestampMap.get(ts)!.traders.set(trader.trader_id, {
-          pnl_pct: point.total_pnl_pct || 0,
-          equity: point.total_equity,
-        })
+        // Use latest value if multiple points fall in same minute
+        const existing = timestampMap.get(normalizedTs)!.traders.get(trader.trader_id)
+        if (!existing || new Date(point.timestamp) > new Date(existing.originalTs || '')) {
+          timestampMap.get(normalizedTs)!.traders.set(trader.trader_id, {
+            pnl_pct: point.total_pnl_pct || 0,
+            equity: point.total_equity,
+            originalTs: point.timestamp,
+          })
+        }
       })
     })
 
-    const combined = Array.from(timestampMap.entries())
+    const sortedEntries = Array.from(timestampMap.entries())
       .sort(([tsA], [tsB]) => new Date(tsA).getTime() - new Date(tsB).getTime())
-      .map(([ts, data], index) => {
-        const entry: any = {
-          index: index + 1,
-          time: data.time,
-          timestamp: ts,
-        }
 
-        traders.forEach((trader) => {
-          const traderData = data.traders.get(trader.trader_id)
-          if (traderData) {
-            entry[`${trader.trader_id}_pnl_pct`] = traderData.pnl_pct
-            entry[`${trader.trader_id}_equity`] = traderData.equity
+    // Track last known values for each trader to fill gaps
+    const lastKnown: Map<string, { pnl_pct: number; equity: number }> = new Map()
+
+    const combined = sortedEntries.map(([ts, data], index) => {
+      const entry: any = {
+        index: index + 1,
+        time: data.time,
+        timestamp: ts,
+      }
+
+      traders.forEach((trader) => {
+        const traderData = data.traders.get(trader.trader_id)
+        if (traderData) {
+          // Update last known value
+          lastKnown.set(trader.trader_id, {
+            pnl_pct: traderData.pnl_pct,
+            equity: traderData.equity,
+          })
+          entry[`${trader.trader_id}_pnl_pct`] = traderData.pnl_pct
+          entry[`${trader.trader_id}_equity`] = traderData.equity
+        } else {
+          // Use last known value to fill gap
+          const last = lastKnown.get(trader.trader_id)
+          if (last) {
+            entry[`${trader.trader_id}_pnl_pct`] = last.pnl_pct
+            entry[`${trader.trader_id}_equity`] = last.equity
           }
-        })
-
-        return entry
+        }
       })
 
+      return entry
+    })
+
     return combined
-  }, [allTraderHistories, traders])
+  }, [allTraderHistories, traders, selectedHours])
 
   // Get trader color
   const traderColor = (traderId: string) => getTraderColor(traders, traderId)
@@ -187,14 +241,15 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
     const minVal = Math.min(...allValues)
     const maxVal = Math.max(...allValues)
+    const range = maxVal - minVal
 
-    // Ensure zero is visible and add symmetric padding
-    const absMax = Math.max(Math.abs(maxVal), Math.abs(minVal), 0.5)
-    const padding = absMax * 0.3
+    // Use actual data range with 20% padding on each side
+    // This ensures both lines are clearly visible
+    const padding = Math.max(range * 0.2, 2) // At least 2% padding
 
     return [
-      Math.floor((Math.min(minVal, 0) - padding) * 10) / 10,
-      Math.ceil((Math.max(maxVal, 0) + padding) * 10) / 10
+      Math.floor((minVal - padding) * 10) / 10,
+      Math.ceil((maxVal + padding) * 10) / 10
     ]
   }
 
@@ -280,27 +335,50 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
 
   return (
     <div className="space-y-4">
-      {/* Mini Stats Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {traderStats.map((trader, idx) => (
-          <div key={trader.trader_id}
-               className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:scale-105"
-               style={{
-                 background: idx === 0 ? 'rgba(240, 185, 11, 0.15)' : 'rgba(43, 49, 57, 0.5)',
-                 border: `1px solid ${idx === 0 ? 'rgba(240, 185, 11, 0.3)' : '#2B3139'}`
-               }}>
-            <div className="w-2 h-2 rounded-full"
-                 style={{ background: traderColor(trader.trader_id) }} />
-            <span className="text-xs font-medium truncate max-w-[80px]"
-                  style={{ color: '#EAECEF' }}>
-              {trader.trader_name}
-            </span>
-            <span className="text-xs font-bold mono"
-                  style={{ color: trader.currentPnl >= 0 ? '#0ECB81' : '#F6465D' }}>
-              {trader.currentPnl >= 0 ? '+' : ''}{trader.currentPnl.toFixed(2)}%
-            </span>
-          </div>
-        ))}
+      {/* Time Period Selector + Mini Stats Bar */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        {/* Time Period Buttons */}
+        <div className="flex items-center gap-1">
+          {TIME_PERIODS.map((period) => (
+            <button
+              key={period.key}
+              onClick={() => setSelectedPeriod(period.key)}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all"
+              style={{
+                background: selectedPeriod === period.key
+                  ? 'rgba(240, 185, 11, 0.2)'
+                  : 'rgba(43, 49, 57, 0.5)',
+                color: selectedPeriod === period.key ? '#F0B90B' : '#848E9C',
+                border: `1px solid ${selectedPeriod === period.key ? 'rgba(240, 185, 11, 0.4)' : '#2B3139'}`,
+              }}
+            >
+              {language === 'zh' ? period.label.zh : period.label.en}
+            </button>
+          ))}
+        </div>
+
+        {/* Mini Stats Bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {traderStats.slice(0, 3).map((trader, idx) => (
+            <div key={trader.trader_id}
+                 className="flex items-center gap-2 px-3 py-1.5 rounded-full transition-all hover:scale-105"
+                 style={{
+                   background: idx === 0 ? 'rgba(240, 185, 11, 0.15)' : 'rgba(43, 49, 57, 0.5)',
+                   border: `1px solid ${idx === 0 ? 'rgba(240, 185, 11, 0.3)' : '#2B3139'}`
+                 }}>
+              <div className="w-2 h-2 rounded-full"
+                   style={{ background: traderColor(trader.trader_id) }} />
+              <span className="text-xs font-medium truncate max-w-[80px]"
+                    style={{ color: '#EAECEF' }}>
+                {trader.trader_name}
+              </span>
+              <span className="text-xs font-bold mono"
+                    style={{ color: trader.currentPnl >= 0 ? '#0ECB81' : '#F6465D' }}>
+                {trader.currentPnl >= 0 ? '+' : ''}{trader.currentPnl.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Chart */}

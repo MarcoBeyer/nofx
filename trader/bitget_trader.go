@@ -1069,8 +1069,8 @@ func (t *BitgetTrader) GetClosedPnL(startTime time.Time, limit int) ([]ClosedPnL
 
 		cTime, _ := strconv.ParseInt(pos.CTime, 10, 64)
 		uTime, _ := strconv.ParseInt(pos.UTime, 10, 64)
-		record.EntryTime = time.UnixMilli(cTime)
-		record.ExitTime = time.UnixMilli(uTime)
+		record.EntryTime = time.UnixMilli(cTime).UTC()
+		record.ExitTime = time.UnixMilli(uTime).UTC()
 
 		record.CloseType = "unknown"
 		records = append(records, record)
@@ -1095,4 +1095,10 @@ func genBitgetClientOid() string {
 	timestamp := time.Now().UnixNano() % 10000000000000
 	rand := time.Now().Nanosecond() % 100000
 	return fmt.Sprintf("nofx%d%05d", timestamp, rand)
+}
+
+// GetOpenOrders gets all open/pending orders for a symbol
+func (t *BitgetTrader) GetOpenOrders(symbol string) ([]OpenOrder, error) {
+	// TODO: Implement Bitget open orders
+	return []OpenOrder{}, nil
 }

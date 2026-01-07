@@ -22,13 +22,55 @@
 - **Web ベース設定**: JSON 編集不要 - Web インターフェースですべて設定
 - **リアルタイムダッシュボード**: ライブポジション、損益追跡、思考連鎖付き AI 決定ログ
 
-### [Amber.ac](https://amber.ac) 支援
-
 > **リスク警告**: このシステムは実験的です。AI 自動取引には重大なリスクがあります。学習/研究目的または少額でのテストのみを強くお勧めします！
 
 ## 開発者コミュニティ
 
 Telegram 開発者コミュニティに参加: **[NOFX 開発者コミュニティ](https://t.me/nofx_dev_community)**
+
+---
+
+## 始める前に
+
+NOFXを使用するには以下が必要です:
+
+1. **取引所アカウント** - サポートされている取引所に登録し、取引権限付きのAPI認証情報を作成
+2. **AI モデル API キー** - サポートされているプロバイダーから取得（コスト効率の良いDeepSeekを推奨）
+
+---
+
+## サポート取引所
+
+### CEX (中央集権型取引所)
+
+| 取引所 | ステータス | 登録 (手数料割引) |
+|----------|--------|-------------------------|
+| **Binance** | ✅ サポート | [登録](https://www.binance.com/join?ref=NOFXENG) |
+| **Bybit** | ✅ サポート | [登録](https://partner.bybit.com/b/83856) |
+| **OKX** | ✅ サポート | [登録](https://www.okx.com/join/1865360) |
+| **Bitget** | ✅ サポート | [登録](https://www.bitget.com/referral/register?from=referral&clacCode=c8a43172) |
+
+### Perp-DEX (分散型永久先物取引所)
+
+| 取引所 | ステータス | 登録 (手数料割引) |
+|----------|--------|-------------------------|
+| **Hyperliquid** | ✅ サポート | [登録](https://app.hyperliquid.xyz/join/AITRADING) |
+| **Aster DEX** | ✅ サポート | [登録](https://www.asterdex.com/en/referral/fdfc0e) |
+| **Lighter** | ✅ サポート | [登録](https://app.lighter.xyz/?referral=68151432) |
+
+---
+
+## サポート AI モデル
+
+| AI モデル | ステータス | API キー取得 |
+|----------|--------|-------------|
+| **DeepSeek** | ✅ サポート | [API キー取得](https://platform.deepseek.com) |
+| **Qwen** | ✅ サポート | [API キー取得](https://dashscope.console.aliyun.com) |
+| **OpenAI (GPT)** | ✅ サポート | [API キー取得](https://platform.openai.com) |
+| **Claude** | ✅ サポート | [API キー取得](https://console.anthropic.com) |
+| **Gemini** | ✅ サポート | [API キー取得](https://aistudio.google.com) |
+| **Grok** | ✅ サポート | [API キー取得](https://console.x.ai) |
+| **Kimi** | ✅ サポート | [API キー取得](https://platform.moonshot.cn) |
 
 ---
 
@@ -44,6 +86,16 @@ chmod +x ./start.sh
 ```
 
 Web インターフェースにアクセス: **http://localhost:3000**
+
+### 最新版への更新
+
+> **💡 更新は頻繁です。** 最新の機能と修正を取得するために、毎日このコマンドを実行してください：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NoFxAiOS/nofx/main/install.sh | bash
+```
+
+このコマンドは最新の公式イメージを取得し、サービスを自動的に再起動します。
 
 ### オプション 2: 手動インストール
 

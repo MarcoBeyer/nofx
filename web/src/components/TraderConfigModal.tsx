@@ -19,7 +19,7 @@ const EXCHANGE_REGISTRATION_LINKS: Record<string, { url: string; hasReferral?: b
   bybit: { url: 'https://partner.bybit.com/b/83856', hasReferral: true },
   hyperliquid: { url: 'https://app.hyperliquid.xyz/join/AITRADING', hasReferral: true },
   aster: { url: 'https://www.asterdex.com/en/referral/fdfc0e', hasReferral: true },
-  lighter: { url: 'https://lighter.xyz', hasReferral: false },
+  lighter: { url: 'https://app.lighter.xyz/?referral=68151432', hasReferral: true },
 }
 
 import type { TraderConfigData } from '../types'
@@ -368,7 +368,7 @@ export function TraderConfigModal({
                   <div className="grid grid-cols-2 gap-2 text-xs text-[#848E9C]">
                     <div>
                       币种来源: {selectedStrategy.config.coin_source.source_type === 'static' ? '固定币种' :
-                        selectedStrategy.config.coin_source.source_type === 'coinpool' ? 'Coin Pool' :
+                        selectedStrategy.config.coin_source.source_type === 'ai500' ? 'AI500' :
                         selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top' : '混合'}
                     </div>
                     <div>

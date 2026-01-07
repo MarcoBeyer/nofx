@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"nofx/decision"
+	"nofx/kernel"
 	"nofx/market"
 	"nofx/mcp"
 	"nofx/store"
@@ -34,7 +34,7 @@ type Runner struct {
 	cfg            BacktestConfig
 	feed           *DataFeed
 	account        *BacktestAccount
-	strategyEngine *decision.StrategyEngine
+	strategyEngine *kernel.StrategyEngine
 
 	decisionLogDir string
 	mcpClient      mcp.AIClient
@@ -118,7 +118,7 @@ func NewRunner(cfg BacktestConfig, mcpClient mcp.AIClient) (*Runner, error) {
 
 	// Create strategy engine from backtest config for unified prompt generation
 	strategyConfig := cfg.ToStrategyConfig()
-	strategyEngine := decision.NewStrategyEngine(strategyConfig)
+	strategyEngine := kernel.NewStrategyEngine(strategyConfig)
 
 	r := &Runner{
 		cfg:            cfg,
@@ -305,7 +305,7 @@ func (r *Runner) stepOnce() error {
 		record = rec
 
 		var (
-			fullDecision *decision.FullDecision
+			fullDecision *kernel.FullDecision
 			fromCache    bool
 			cacheKey     string
 		)
@@ -470,7 +470,7 @@ func (r *Runner) stepOnce() error {
 	return nil
 }
 
-func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Data, multiTF map[string]map[string]*market.Data, priceMap map[string]float64, callCount int) (*decision.Context, *store.DecisionRecord, error) {
+func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Data, multiTF map[string]map[string]*market.Data, priceMap map[string]float64, callCount int) (*kernel.Context, *store.DecisionRecord, error) {
 	equity, unrealized, _ := r.account.TotalEquity(priceMap)
 	available := r.account.Cash()
 	marginUsed := r.totalMarginUsed()
@@ -479,7 +479,7 @@ func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Da
 		marginPct = (marginUsed / equity) * 100
 	}
 
-	accountInfo := decision.AccountInfo{
+	accountInfo := kernel.AccountInfo{
 		TotalEquity:      equity,
 		AvailableBalance: available,
 		TotalPnL:         equity - r.account.InitialBalance(),
@@ -491,13 +491,18 @@ func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Da
 
 	positions := r.convertPositions(priceMap)
 
-	candidateCoins := make([]decision.CandidateCoin, 0, len(r.cfg.Symbols))
-	for _, sym := range r.cfg.Symbols {
-		candidateCoins = append(candidateCoins, decision.CandidateCoin{Symbol: sym})
+	// Get candidate coins from strategy engine (includes source info)
+	candidateCoins, err := r.strategyEngine.GetCandidateCoins()
+	if err != nil {
+		// Fallback to simple list if strategy engine fails
+		candidateCoins = make([]kernel.CandidateCoin, 0, len(r.cfg.Symbols))
+		for _, sym := range r.cfg.Symbols {
+			candidateCoins = append(candidateCoins, kernel.CandidateCoin{Symbol: sym, Sources: []string{"backtest"}})
+		}
 	}
 
 	runtime := int((ts - int64(r.cfg.StartTS*1000)) / 60000)
-	ctx := &decision.Context{
+	ctx := &kernel.Context{
 		CurrentTime:     time.UnixMilli(ts).UTC().Format("2006-01-02 15:04:05 UTC"),
 		RuntimeMinutes:  runtime,
 		CallCount:       callCount,
@@ -510,6 +515,54 @@ func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Da
 		BTCETHLeverage:  r.cfg.Leverage.BTCETHLeverage,
 		AltcoinLeverage: r.cfg.Leverage.AltcoinLeverage,
 		Timeframes:      r.cfg.Timeframes,
+	}
+
+	// Fetch quantitative data if enabled in strategy (uses current data as approximation)
+	strategyConfig := r.strategyEngine.GetConfig()
+	if strategyConfig.Indicators.EnableQuantData {
+		// Collect symbols to query (candidate coins + position coins)
+		symbolSet := make(map[string]bool)
+		for _, sym := range r.cfg.Symbols {
+			symbolSet[sym] = true
+		}
+		for _, pos := range positions {
+			symbolSet[pos.Symbol] = true
+		}
+		symbols := make([]string, 0, len(symbolSet))
+		for sym := range symbolSet {
+			symbols = append(symbols, sym)
+		}
+		ctx.QuantDataMap = r.strategyEngine.FetchQuantDataBatch(symbols)
+		if len(ctx.QuantDataMap) > 0 {
+			logger.Infof("📊 Backtest: fetched quant data for %d symbols", len(ctx.QuantDataMap))
+		}
+	}
+
+	// Fetch OI ranking data if enabled in strategy (uses current data as approximation)
+	if strategyConfig.Indicators.EnableOIRanking {
+		ctx.OIRankingData = r.strategyEngine.FetchOIRankingData()
+		if ctx.OIRankingData != nil {
+			logger.Infof("📊 Backtest: OI ranking data ready: %d top, %d low positions",
+				len(ctx.OIRankingData.TopPositions), len(ctx.OIRankingData.LowPositions))
+		}
+	}
+
+	// Fetch NetFlow ranking data if enabled in strategy
+	if strategyConfig.Indicators.EnableNetFlowRanking {
+		ctx.NetFlowRankingData = r.strategyEngine.FetchNetFlowRankingData()
+		if ctx.NetFlowRankingData != nil {
+			logger.Infof("💰 Backtest: NetFlow ranking data ready: inst_in=%d, inst_out=%d",
+				len(ctx.NetFlowRankingData.InstitutionFutureTop), len(ctx.NetFlowRankingData.InstitutionFutureLow))
+		}
+	}
+
+	// Fetch Price ranking data if enabled in strategy
+	if strategyConfig.Indicators.EnablePriceRanking {
+		ctx.PriceRankingData = r.strategyEngine.FetchPriceRankingData()
+		if ctx.PriceRankingData != nil {
+			logger.Infof("📈 Backtest: Price ranking data ready for %d durations",
+				len(ctx.PriceRankingData.Durations))
+		}
 	}
 
 	record := &store.DecisionRecord{
@@ -531,7 +584,7 @@ func (r *Runner) buildDecisionContext(ts int64, marketData map[string]*market.Da
 	return ctx, record, nil
 }
 
-func (r *Runner) fillDecisionRecord(record *store.DecisionRecord, full *decision.FullDecision) {
+func (r *Runner) fillDecisionRecord(record *store.DecisionRecord, full *kernel.FullDecision) {
 	record.InputPrompt = full.UserPrompt
 	record.CoTTrace = full.CoTTrace
 	if len(full.Decisions) > 0 {
@@ -541,12 +594,12 @@ func (r *Runner) fillDecisionRecord(record *store.DecisionRecord, full *decision
 	}
 }
 
-func (r *Runner) invokeAIWithRetry(ctx *decision.Context) (*decision.FullDecision, error) {
+func (r *Runner) invokeAIWithRetry(ctx *kernel.Context) (*kernel.FullDecision, error) {
 	var lastErr error
 	for attempt := 0; attempt < aiDecisionMaxRetries; attempt++ {
 		// Use GetFullDecisionWithStrategy with the pre-configured strategy engine
 		// This ensures backtest uses the same unified prompt generation as live trading
-		fd, err := decision.GetFullDecisionWithStrategy(
+		fd, err := kernel.GetFullDecisionWithStrategy(
 			ctx,
 			r.mcpClient,
 			r.strategyEngine,
@@ -562,7 +615,7 @@ func (r *Runner) invokeAIWithRetry(ctx *decision.Context) (*decision.FullDecisio
 	return nil, lastErr
 }
 
-func (r *Runner) executeDecision(dec decision.Decision, priceMap map[string]float64, ts int64, cycle int) (store.DecisionAction, []TradeEvent, string, error) {
+func (r *Runner) executeDecision(dec kernel.Decision, priceMap map[string]float64, ts int64, cycle int) (store.DecisionAction, []TradeEvent, string, error) {
 	symbol := dec.Symbol
 	usedLeverage := r.resolveLeverage(dec.Leverage, symbol)
 	actionRecord := store.DecisionAction{
@@ -704,16 +757,37 @@ func (r *Runner) executeDecision(dec decision.Decision, priceMap map[string]floa
 	}
 }
 
-func (r *Runner) determineQuantity(dec decision.Decision, price float64) float64 {
+func (r *Runner) determineQuantity(dec kernel.Decision, price float64) float64 {
 	snapshot := r.snapshotState()
 	equity := snapshot.Equity
 	if equity <= 0 {
 		equity = r.account.InitialBalance()
 	}
+
+	// Get leverage for this symbol
+	leverage := r.resolveLeverage(dec.Leverage, dec.Symbol)
+	if leverage <= 0 {
+		leverage = 5
+	}
+
+	// Calculate available margin (leave some buffer for fees)
+	availableCash := r.account.Cash()
+	maxMarginToUse := availableCash * 0.9 // Use max 90% of available cash
+	maxPositionValue := maxMarginToUse * float64(leverage)
+
 	sizeUSD := dec.PositionSizeUSD
 	if sizeUSD <= 0 {
+		// Default to 5% of equity, but cap to available margin
 		sizeUSD = 0.05 * equity
 	}
+
+	// Cap position size to what we can actually afford
+	if sizeUSD > maxPositionValue {
+		logger.Infof("📊 Backtest: capping position from %.2f to %.2f (available margin: %.2f, leverage: %dx)",
+			sizeUSD, maxPositionValue, maxMarginToUse, leverage)
+		sizeUSD = maxPositionValue
+	}
+
 	qty := sizeUSD / price
 	if qty < 0 {
 		qty = 0
@@ -721,7 +795,7 @@ func (r *Runner) determineQuantity(dec decision.Decision, price float64) float64
 	return qty
 }
 
-func (r *Runner) determineCloseQuantity(symbol, side string, dec decision.Decision) float64 {
+func (r *Runner) determineCloseQuantity(symbol, side string, dec kernel.Decision) float64 {
 	for _, pos := range r.account.Positions() {
 		if pos.Symbol == strings.ToUpper(symbol) && pos.Side == side {
 			return pos.Quantity
@@ -775,12 +849,12 @@ func (r *Runner) snapshotPositions(priceMap map[string]float64) []store.Position
 	return list
 }
 
-func (r *Runner) convertPositions(priceMap map[string]float64) []decision.PositionInfo {
+func (r *Runner) convertPositions(priceMap map[string]float64) []kernel.PositionInfo {
 	positions := r.account.Positions()
-	list := make([]decision.PositionInfo, 0, len(positions))
+	list := make([]kernel.PositionInfo, 0, len(positions))
 	for _, pos := range positions {
 		price := priceMap[pos.Symbol]
-		list = append(list, decision.PositionInfo{
+		list = append(list, kernel.PositionInfo{
 			Symbol:           pos.Symbol,
 			Side:             pos.Side,
 			EntryPrice:       pos.EntryPrice,
@@ -855,6 +929,7 @@ func (r *Runner) updateState(ts int64, equity, unrealized, marginUsed float64, p
 			LiquidationPrice: pos.LiquidationPrice,
 			MarginUsed:       pos.Margin,
 			OpenTime:         pos.OpenTime,
+			AccumulatedFee:   pos.AccumulatedFee,
 		}
 	}
 
@@ -1098,6 +1173,49 @@ func (r *Runner) StatusPayload() StatusPayload {
 	snapshot := r.snapshotState()
 	progress := progressPercent(snapshot, r.cfg)
 
+	// Build position statuses with unrealized P&L
+	positions := make([]PositionStatus, 0, len(snapshot.Positions))
+	for _, pos := range snapshot.Positions {
+		if pos.Quantity <= 0 {
+			continue
+		}
+		// Get mark price from feed if available
+		markPrice := pos.AvgPrice // fallback to entry price
+		if r.feed != nil && snapshot.BarTimestamp > 0 {
+			if md, _, err := r.feed.BuildMarketData(snapshot.BarTimestamp); err == nil {
+				if data, ok := md[pos.Symbol]; ok {
+					markPrice = data.CurrentPrice
+				}
+			}
+		}
+
+		// Calculate unrealized P&L
+		var unrealizedPnL float64
+		if pos.Side == "long" {
+			unrealizedPnL = (markPrice - pos.AvgPrice) * pos.Quantity
+		} else {
+			unrealizedPnL = (pos.AvgPrice - markPrice) * pos.Quantity
+		}
+
+		// Calculate P&L percentage based on margin
+		pnlPct := 0.0
+		if pos.MarginUsed > 0 {
+			pnlPct = (unrealizedPnL / pos.MarginUsed) * 100
+		}
+
+		positions = append(positions, PositionStatus{
+			Symbol:           pos.Symbol,
+			Side:             pos.Side,
+			Quantity:         pos.Quantity,
+			EntryPrice:       pos.AvgPrice,
+			MarkPrice:        markPrice,
+			Leverage:         pos.Leverage,
+			UnrealizedPnL:    unrealizedPnL,
+			UnrealizedPnLPct: pnlPct,
+			MarginUsed:       pos.MarginUsed,
+		})
+	}
+
 	payload := StatusPayload{
 		RunID:          r.cfg.RunID,
 		State:          r.Status(),
@@ -1108,6 +1226,7 @@ func (r *Runner) StatusPayload() StatusPayload {
 		Equity:         snapshot.Equity,
 		UnrealizedPnL:  snapshot.UnrealizedPnL,
 		RealizedPnL:    snapshot.RealizedPnL,
+		Positions:      positions,
 		Note:           snapshot.LiquidationNote,
 		LastError:      r.lastErrorString(),
 		LastUpdatedIso: snapshot.LastUpdate.UTC().Format(time.RFC3339),
@@ -1315,7 +1434,7 @@ func snapshotsToMap(snaps []PositionSnapshot) map[string]PositionSnapshot {
 	return positions
 }
 
-func sortDecisionsByPriority(decisions []decision.Decision) []decision.Decision {
+func sortDecisionsByPriority(decisions []kernel.Decision) []kernel.Decision {
 	if len(decisions) <= 1 {
 		return decisions
 	}
@@ -1333,7 +1452,7 @@ func sortDecisionsByPriority(decisions []decision.Decision) []decision.Decision 
 		}
 	}
 
-	result := make([]decision.Decision, len(decisions))
+	result := make([]kernel.Decision, len(decisions))
 	copy(result, decisions)
 
 	sort.Slice(result, func(i, j int) bool {

@@ -280,6 +280,15 @@ func (t *BybitTrader) GetPositions() ([]map[string]interface{}, error) {
 func (t *BybitTrader) OpenLong(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
 	logger.Infof("[Bybit] ===== OpenLong called: symbol=%s, qty=%.6f, leverage=%d =====", symbol, quantity, leverage)
 
+	// First cancel all pending orders for this symbol (clean up old orders)
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old pending orders: %v", err)
+	}
+	// Also cancel conditional orders (stop-loss/take-profit) - Bybit keeps them separate
+	if err := t.CancelStopOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old stop orders: %v", err)
+	}
+
 	// Set leverage first
 	if err := t.SetLeverage(symbol, leverage); err != nil {
 		logger.Infof("⚠️ [Bybit] Failed to set leverage: %v", err)
@@ -313,6 +322,15 @@ func (t *BybitTrader) OpenLong(symbol string, quantity float64, leverage int) (m
 // OpenShort opens a short position
 func (t *BybitTrader) OpenShort(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
 	logger.Infof("[Bybit] ===== OpenShort called: symbol=%s, qty=%.6f, leverage=%d =====", symbol, quantity, leverage)
+
+	// First cancel all pending orders for this symbol (clean up old orders)
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old pending orders: %v", err)
+	}
+	// Also cancel conditional orders (stop-loss/take-profit) - Bybit keeps them separate
+	if err := t.CancelStopOrders(symbol); err != nil {
+		logger.Infof("⚠️ [Bybit] Failed to cancel old stop orders: %v", err)
+	}
 
 	// Set leverage first
 	if err := t.SetLeverage(symbol, leverage); err != nil {
@@ -1014,8 +1032,8 @@ func (t *BybitTrader) parseClosedPnLResult(resultData interface{}) ([]ClosedPnLR
 			RealizedPnL: closedPnL,
 			Fee:         fee,
 			Leverage:    int(leverage),
-			EntryTime:   time.UnixMilli(createdTime),
-			ExitTime:    time.UnixMilli(updatedTime),
+			EntryTime:   time.UnixMilli(createdTime).UTC(),
+			ExitTime:    time.UnixMilli(updatedTime).UTC(),
 			OrderID:     orderId,
 			CloseType:   "unknown", // Bybit doesn't provide close type directly
 			ExchangeID:  orderId,   // Use orderId as exchange ID
@@ -1025,4 +1043,65 @@ func (t *BybitTrader) parseClosedPnLResult(resultData interface{}) ([]ClosedPnLR
 	}
 
 	return records, nil
+}
+
+// GetOpenOrders gets all open/pending orders for a symbol
+func (t *BybitTrader) GetOpenOrders(symbol string) ([]OpenOrder, error) {
+	var result []OpenOrder
+
+	// Get conditional orders (stop-loss, take-profit)
+	params := map[string]interface{}{
+		"category":    "linear",
+		"symbol":      symbol,
+		"orderFilter": "StopOrder",
+	}
+
+	resp, err := t.client.NewUtaBybitServiceWithParams(params).GetOpenOrders(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open orders: %w", err)
+	}
+
+	if resp.RetCode == 0 {
+		resultData, ok := resp.Result.(map[string]interface{})
+		if ok {
+			list, _ := resultData["list"].([]interface{})
+			for _, item := range list {
+				order, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				orderId, _ := order["orderId"].(string)
+				sym, _ := order["symbol"].(string)
+				side, _ := order["side"].(string)
+				orderType, _ := order["orderType"].(string)
+				stopOrderType, _ := order["stopOrderType"].(string)
+				triggerPrice, _ := order["triggerPrice"].(string)
+				qty, _ := order["qty"].(string)
+
+				price, _ := strconv.ParseFloat(triggerPrice, 64)
+				quantity, _ := strconv.ParseFloat(qty, 64)
+
+				// Determine type based on stopOrderType
+				displayType := orderType
+				if stopOrderType != "" {
+					displayType = stopOrderType
+				}
+
+				result = append(result, OpenOrder{
+					OrderID:      orderId,
+					Symbol:       sym,
+					Side:         side,
+					PositionSide: "", // Bybit doesn't use positionSide for UTA
+					Type:         displayType,
+					Price:        0,
+					StopPrice:    price,
+					Quantity:     quantity,
+					Status:       "NEW",
+				})
+			}
+		}
+	}
+
+	return result, nil
 }

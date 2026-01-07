@@ -1407,10 +1407,16 @@ func (t *AsterTrader) GetTrades(startTime time.Time, limit int) ([]TradeRecord, 
 			Quantity:     qty,
 			RealizedPnL:  pnl,
 			Fee:          fee,
-			Time:         time.UnixMilli(at.Time),
+			Time:         time.UnixMilli(at.Time).UTC(),
 		}
 		result = append(result, trade)
 	}
 
 	return result, nil
+}
+
+// GetOpenOrders gets all open/pending orders for a symbol
+func (t *AsterTrader) GetOpenOrders(symbol string) ([]OpenOrder, error) {
+	// TODO: Implement Aster open orders
+	return []OpenOrder{}, nil
 }

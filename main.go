@@ -6,18 +6,17 @@ import (
 	"nofx/backtest"
 	"nofx/config"
 	"nofx/crypto"
+	"nofx/experience"
 	"nofx/logger"
 	"nofx/manager"
-	"nofx/market"
 	"nofx/mcp"
 	"nofx/store"
-	"nofx/trader"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
@@ -29,7 +28,7 @@ func main() {
 	logger.Init(nil)
 
 	logger.Info("╔════════════════════════════════════════════════════════════╗")
-	logger.Info("║    🤖 AI Multi-Model Trading System - DeepSeek & Qwen      ║")
+	logger.Info("║           🚀 NOFX - AI-Powered Trading System              ║")
 	logger.Info("╚════════════════════════════════════════════════════════════╝")
 
 	// Initialize global configuration (loaded from .env)
@@ -37,71 +36,64 @@ func main() {
 	cfg := config.Get()
 	logger.Info("✅ Configuration loaded")
 
-	// Initialize database
-	// Default path is data/data.db to work with Docker volume mount (/app/data)
-	dbPath := "data/data.db"
-	if len(os.Args) > 1 {
-		dbPath = os.Args[1]
+	// Initialize encryption service BEFORE database (so EncryptedString can decrypt on read)
+	logger.Info("🔐 Initializing encryption service...")
+	cryptoService, err := crypto.NewCryptoService()
+	if err != nil {
+		logger.Fatalf("❌ Failed to initialize encryption service: %v", err)
 	}
-	// Ensure data directory exists
-	if dir := filepath.Dir(dbPath); dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			logger.Errorf("Failed to create data directory: %v", err)
+	crypto.SetGlobalCryptoService(cryptoService)
+	logger.Info("✅ Encryption service initialized successfully")
+
+	// Initialize database from configuration
+	// For backward compatibility: command line arg overrides config (SQLite only)
+	if len(os.Args) > 1 {
+		cfg.DBPath = os.Args[1]
+	}
+	// Ensure data directory exists (for SQLite)
+	if cfg.DBType == "sqlite" {
+		if dir := filepath.Dir(cfg.DBPath); dir != "." {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				logger.Errorf("Failed to create data directory: %v", err)
+			}
 		}
 	}
 
-	logger.Infof("📋 Initializing database: %s", dbPath)
-	st, err := store.New(dbPath)
+	logger.Infof("📋 Initializing database (%s)...", cfg.DBType)
+	dbType := store.DBTypeSQLite
+	if cfg.DBType == "postgres" {
+		dbType = store.DBTypePostgres
+	}
+	st, err := store.NewWithConfig(store.DBConfig{
+		Type:     dbType,
+		Path:     cfg.DBPath,
+		Host:     cfg.DBHost,
+		Port:     cfg.DBPort,
+		User:     cfg.DBUser,
+		Password: cfg.DBPassword,
+		DBName:   cfg.DBName,
+		SSLMode:  cfg.DBSSLMode,
+	})
 	if err != nil {
 		logger.Fatalf("❌ Failed to initialize database: %v", err)
 	}
 	defer st.Close()
 	backtest.UseDatabase(st.DB())
 
-	// Initialize encryption service
-	logger.Info("🔐 Initializing encryption service...")
-	cryptoService, err := crypto.NewCryptoService()
-	if err != nil {
-		logger.Fatalf("❌ Failed to initialize encryption service: %v", err)
-	}
-	encryptFunc := func(plaintext string) string {
-		if plaintext == "" {
-			return plaintext
-		}
-		encrypted, err := cryptoService.EncryptForStorage(plaintext)
-		if err != nil {
-			logger.Warnf("⚠️ Encryption failed: %v", err)
-			return plaintext
-		}
-		return encrypted
-	}
-	decryptFunc := func(encrypted string) string {
-		if encrypted == "" {
-			return encrypted
-		}
-		if !cryptoService.IsEncryptedStorageValue(encrypted) {
-			return encrypted
-		}
-		decrypted, err := cryptoService.DecryptFromStorage(encrypted)
-		if err != nil {
-			logger.Warnf("⚠️ Decryption failed: %v", err)
-			return encrypted
-		}
-		return decrypted
-	}
-	st.SetCryptoFuncs(encryptFunc, decryptFunc)
-	logger.Info("✅ Encryption service initialized successfully")
+	// Initialize installation ID for experience improvement (anonymous statistics)
+	initInstallationID(st)
 
 	// Set JWT secret
 	auth.SetJWTSecret(cfg.JWTSecret)
 	logger.Info("🔑 JWT secret configured")
 
-	// Start WebSocket market monitor FIRST (before loading traders that may need market data)
-	// This ensures WSMonitorCli is initialized before any trader tries to access it
-	go market.NewWSMonitor(150).Start(nil)
-	logger.Info("📊 WebSocket market monitor started")
-	// Give WebSocket monitor time to initialize
-	time.Sleep(500 * time.Millisecond)
+	// WebSocket market monitor is NO LONGER USED
+	// All K-line data now comes from CoinAnk API instead of Binance WebSocket cache
+	// Commented out to reduce unnecessary connections:
+	// go market.NewWSMonitor(150).Start(nil)
+	// logger.Info("📊 WebSocket market monitor started")
+	// time.Sleep(500 * time.Millisecond)
+	logger.Info("📊 Using CoinAnk API for all market data (WebSocket cache disabled)")
 
 	// Create TraderManager and BacktestManager
 	traderManager := manager.NewTraderManager()
@@ -110,11 +102,6 @@ func main() {
 	if err := backtestManager.RestoreRuns(); err != nil {
 		logger.Warnf("⚠️ Failed to restore backtest history: %v", err)
 	}
-
-	// Start position sync manager (detects manual closures, TP/SL triggers)
-	positionSyncManager := trader.NewPositionSyncManager(st, 0) // 0 = use default 10s interval
-	positionSyncManager.Start()
-	defer positionSyncManager.Stop()
 
 	// Load all traders from database to memory (may auto-start traders with IsRunning=true)
 	if err := traderManager.LoadTradersFromStore(st); err != nil {
@@ -172,4 +159,28 @@ func newSharedMCPClient() mcp.AIClient {
 		return nil
 	}
 	return mcp.NewDeepSeekClient()
+}
+
+// initInstallationID initializes the anonymous installation ID for experience improvement
+// This ID is persisted in database and used for anonymous usage statistics
+func initInstallationID(st *store.Store) {
+	const key = "installation_id"
+
+	// Try to load from database
+	installationID, err := st.GetSystemConfig(key)
+	if err != nil {
+		logger.Warnf("⚠️ Failed to load installation ID: %v", err)
+	}
+
+	// Generate new ID if not exists
+	if installationID == "" {
+		installationID = uuid.New().String()
+		if err := st.SetSystemConfig(key, installationID); err != nil {
+			logger.Warnf("⚠️ Failed to save installation ID: %v", err)
+		}
+		logger.Infof("📊 Generated new installation ID: %s", installationID[:8]+"...")
+	}
+
+	// Set installation ID in experience module
+	experience.SetInstallationID(installationID)
 }
