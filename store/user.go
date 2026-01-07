@@ -16,8 +16,8 @@ type UserStore struct {
 // User user model
 type User struct {
 	ID           string    `gorm:"primaryKey" json:"id"`
-	// Remove "not null" to prevent SQLite migration "NOT NULL constraint failed" error, API validation handles it
-	Email        string    `gorm:"uniqueIndex:idx_users_email" json:"email"`
+	// Explicitly set nullable to handle migration issues
+	Email        string    `gorm:"type:text;null;default:null;uniqueIndex:idx_users_email" json:"email"`
 	PasswordHash string    `gorm:"column:password_hash;not null" json:"-"`
 	OTPSecret    string    `gorm:"column:otp_secret" json:"-"`
 	OTPVerified  bool      `gorm:"column:otp_verified;default:false" json:"otp_verified"`
