@@ -29,7 +29,7 @@ export function CoinSourceEditor({
           const data = await response.json()
           if (data.symbols && Array.isArray(data.symbols)) {
             // Store just the symbol names for efficient lookup
-            const symbols = new Set(data.symbols.map((s: any) => s.symbol))
+            const symbols = new Set<string>(data.symbols.map((s: any) => s.symbol))
             setHyperliquidSymbols(symbols)
           }
         }
@@ -284,8 +284,8 @@ export function CoinSourceEditor({
           <button
             onClick={() => setShowHyperliquidOnly(!showHyperliquidOnly)}
             className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors border ${showHyperliquidOnly
-                ? 'bg-nofx-gold/20 text-nofx-gold border-nofx-gold/30'
-                : 'bg-transparent text-nofx-text-muted border-transparent hover:bg-white/5'
+              ? 'bg-nofx-gold/20 text-nofx-gold border-nofx-gold/30'
+              : 'bg-transparent text-nofx-text-muted border-transparent hover:bg-white/5'
               }`}
           >
             <Filter className="w-3 h-3" />
@@ -304,8 +304,8 @@ export function CoinSourceEditor({
               <span
                 key={coin}
                 className={`flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs border ${isAvailable
-                    ? 'bg-nofx-danger/10 border-nofx-danger/30 text-nofx-danger'
-                    : 'bg-gray-800/50 border-gray-700 text-gray-400'
+                  ? 'bg-nofx-danger/10 border-nofx-danger/30 text-nofx-danger'
+                  : 'bg-gray-800/50 border-gray-700 text-gray-400'
                   }`}
                 title={isAvailable ? 'Available on Hyperliquid' : 'Not found on Hyperliquid'}
               >
