@@ -480,6 +480,7 @@ export interface CoinSourceConfig {
   ai500_limit?: number;
   use_oi_top: boolean;
   oi_top_limit?: number;
+  filter_hyperliquid?: boolean;
   // Note: API URLs are now built automatically using nofxos_api_key from IndicatorConfig
 }
 

@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,10 +9,12 @@ import (
 	"nofx/logger"
 	"nofx/market"
 	"nofx/mcp"
+	"nofx/provider/hyperliquid"
 	"nofx/provider/nofxos"
 	"nofx/security"
 	"nofx/store"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -537,9 +540,32 @@ func (e *StrategyEngine) getAI500Coins(limit int) ([]CandidateCoin, error) {
 		limit = 30
 	}
 
+	// 1. Get Top N coins (original logic)
 	symbols, err := e.nofxosClient.GetTopRatedCoins(limit)
 	if err != nil {
 		return nil, err
+	}
+
+	// 2. Filter if configured
+	if e.config.CoinSource.FilterHyperliquid {
+		filteredSymbols := []string{}
+		hlSymbols, err := e.getHyperliquidSymbols()
+		if err != nil {
+			logger.Warnf("⚠️  Failed to verify Hyperliquid availability: %v. Skipping filter.", err)
+			// Proceed with original list if check fails
+			filteredSymbols = symbols
+		} else {
+			for _, s := range symbols {
+				// symbols from GetTopRatedCoins are normalized (XXXUSDT)
+				// HL uses base (XXX)
+				base := hyperliquid.NormalizeCoinBase(s)
+				if hlSymbols[base] {
+					filteredSymbols = append(filteredSymbols, s)
+				}
+			}
+			logger.Infof("✓ Filtered AI500 coins by HL availability: %d -> %d", len(symbols), len(filteredSymbols))
+		}
+		symbols = filteredSymbols
 	}
 
 	var candidates []CandidateCoin
@@ -549,6 +575,7 @@ func (e *StrategyEngine) getAI500Coins(limit int) ([]CandidateCoin, error) {
 			Sources: []string{"ai500"},
 		})
 	}
+	
 	return candidates, nil
 }
 
@@ -563,17 +590,82 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 	}
 
 	var candidates []CandidateCoin
-	for i, pos := range positions {
-		if i >= limit {
+	
+	// Prepare filtering if needed
+	var hlSymbols map[string]bool
+	filteringEnabled := e.config.CoinSource.FilterHyperliquid
+	if filteringEnabled {
+		var err error
+		hlSymbols, err = e.getHyperliquidSymbols()
+		if err != nil {
+			logger.Warnf("⚠️  Failed to verify Hyperliquid availability: %v. Skipping filter.", err)
+			filteringEnabled = false
+		}
+	}
+
+	count := 0
+	for _, pos := range positions {
+		if count >= limit {
 			break
 		}
+		
 		symbol := market.Normalize(pos.Symbol)
+		
+		if filteringEnabled {
+			baseSymbol := hyperliquid.NormalizeCoinBase(symbol)
+			if !hlSymbols[baseSymbol] {
+				continue // Skip if not available
+			}
+		}
+
 		candidates = append(candidates, CandidateCoin{
 			Symbol:  symbol,
 			Sources: []string{"oi_top"},
 		})
+		count++
 	}
+	
+	if filteringEnabled {
+		logger.Infof("✓ Selected %d OI Top coins (filtered by HL availability)", len(candidates))
+	}
+	
 	return candidates, nil
+}
+
+// getHyperliquidSymbols fetches all available symbols from Hyperliquid (Crypto + XYZ)
+// Returns a map of BASE symbols (e.g. "BTC", "ETH", "TSLA") -> true
+func (e *StrategyEngine) getHyperliquidSymbols() (map[string]bool, error) {
+	client := hyperliquid.NewClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	valid := make(map[string]bool)
+
+	// 1. Get Crypto Perps
+	mids, err := client.GetAllMids(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for s := range mids {
+		if strings.HasPrefix(s, "@") { continue } // Skip spot
+		valid[s] = true
+	}
+
+	// 2. Get XYZ Assets
+	xyzMids, err := client.GetAllMidsXYZ(ctx)
+	if err == nil {
+		for s := range xyzMids {
+			// s is like "xyz:TSLA", "xyz:GOLD"
+			// Normalize to base for checking
+			base := strings.TrimPrefix(s, "xyz:")
+			valid[base] = true
+		}
+	} else {
+		// warning but valid (maybe xyz is down)
+		logger.Warnf("⚠️  Failed to fetch Hyperliquid XYZ symbols: %v", err)
+	}
+
+	return valid, nil
 }
 
 // ============================================================================

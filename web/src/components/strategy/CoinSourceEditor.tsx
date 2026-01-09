@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, X, Database, TrendingUp, List, Ban, Zap, Check, Filter } from 'lucide-react'
+import { useState, ChangeEvent } from 'react'
+import { Plus, X, Database, TrendingUp, List, Ban, Zap } from 'lucide-react'
 import type { CoinSourceConfig } from '../../types'
 
 interface CoinSourceEditorProps {
@@ -17,28 +17,6 @@ export function CoinSourceEditor({
 }: CoinSourceEditorProps) {
   const [newCoin, setNewCoin] = useState('')
   const [newExcludedCoin, setNewExcludedCoin] = useState('')
-  const [hyperliquidSymbols, setHyperliquidSymbols] = useState<Set<string>>(new Set())
-  const [showHyperliquidOnly, setShowHyperliquidOnly] = useState(false)
-
-  // Fetch Hyperliquid symbols on mount
-  useEffect(() => {
-    const fetchSymbols = async () => {
-      try {
-        const response = await fetch('/api/symbols?exchange=hyperliquid')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.symbols && Array.isArray(data.symbols)) {
-            // Store just the symbol names for efficient lookup
-            const symbols = new Set<string>(data.symbols.map((s: any) => s.symbol))
-            setHyperliquidSymbols(symbols)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch Hyperliquid symbols:', error)
-      }
-    }
-    fetchSymbols()
-  }, [])
 
   const t = (key: string) => {
     const translations: Record<string, Record<string, string>> = {
@@ -71,7 +49,7 @@ export function CoinSourceEditor({
       excludedCoinsDesc: { zh: '这些币种将从所有数据源中排除，不会被交易', en: 'These coins will be excluded from all sources and will not be traded' },
       addExcludedCoin: { zh: '添加排除', en: 'Add Excluded' },
       nofxosNote: { zh: '使用 NofxOS API Key（在指标配置中设置）', en: 'Uses NofxOS API Key (set in Indicators config)' },
-      showHyperliquidOnly: { zh: '仅显示 Hyperliquid 可用', en: 'Show Hyperliquid Available Only' },
+      filterHyperliquid: { zh: '仅选择 Hyperliquid 可交易币种', en: 'Filter by Hyperliquid Availability' },
     }
     return translations[key]?.[language] || key
   }
@@ -162,25 +140,6 @@ export function CoinSourceEditor({
       excluded_coins: (config.excluded_coins || []).filter((c) => c !== coin),
     })
   }
-
-  // Function to check if a coin is on Hyperliquid
-  const isHyperliquidAvailable = (coin: string) => {
-    // Handling potential format differences
-    // 1. Exact match
-    if (hyperliquidSymbols.has(coin)) return true
-
-    // 2. Try removing USDT suffix locally just for check if stored as XXXUSDT but HL uses XXX
-    const base = coin.replace(/USDT$/, '')
-    if (hyperliquidSymbols.has(base)) return true
-
-    return false
-  }
-
-  // Filter excluded coins
-  const displayedExcludedCoins = (config.excluded_coins || []).filter(coin => {
-    if (!showHyperliquidOnly) return true
-    return isHyperliquidAvailable(coin)
-  })
 
   // NofxOS badge component
   const NofxOSBadge = () => (
@@ -279,18 +238,6 @@ export function CoinSourceEditor({
               {t('excludedCoins')}
             </label>
           </div>
-
-          {/* Hyperliquid Filter Toggle */}
-          <button
-            onClick={() => setShowHyperliquidOnly(!showHyperliquidOnly)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors border ${showHyperliquidOnly
-              ? 'bg-nofx-gold/20 text-nofx-gold border-nofx-gold/30'
-              : 'bg-transparent text-nofx-text-muted border-transparent hover:bg-white/5'
-              }`}
-          >
-            <Filter className="w-3 h-3" />
-            {t('showHyperliquidOnly')}
-          </button>
         </div>
 
         <p className="text-xs mb-3 text-nofx-text-muted">
@@ -298,37 +245,25 @@ export function CoinSourceEditor({
         </p>
 
         <div className="flex flex-wrap gap-2 mb-3">
-          {displayedExcludedCoins.map((coin) => {
-            const isAvailable = isHyperliquidAvailable(coin)
-            return (
-              <span
-                key={coin}
-                className={`flex items-center gap-1 pl-2 pr-1 py-1 rounded-full text-xs border ${isAvailable
-                  ? 'bg-nofx-danger/10 border-nofx-danger/30 text-nofx-danger'
-                  : 'bg-gray-800/50 border-gray-700 text-gray-400'
-                  }`}
-                title={isAvailable ? 'Available on Hyperliquid' : 'Not found on Hyperliquid'}
-              >
-                {isAvailable && <Check className="w-3 h-3 mr-0.5" />}
-                {coin}
-                {!disabled && (
-                  <button
-                    onClick={() => handleRemoveExcludedCoin(coin)}
-                    className="ml-1 p-0.5 rounded-full hover:bg-black/20 hover:text-white transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </span>
-            )
-          })}
-
-          {displayedExcludedCoins.length === 0 && (
+          {(config.excluded_coins || []).map((coin) => (
+            <span
+              key={coin}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm bg-nofx-danger/15 text-nofx-danger"
+            >
+              {coin}
+              {!disabled && (
+                <button
+                  onClick={() => handleRemoveExcludedCoin(coin)}
+                  className="ml-1 hover:text-white transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </span>
+          ))}
+          {(config.excluded_coins || []).length === 0 && (
             <span className="text-xs italic text-nofx-text-muted">
-              {showHyperliquidOnly
-                ? (language === 'zh' ? '无符合条件的币种' : 'No matching coins')
-                : (language === 'zh' ? '无' : 'None')
-              }
+              {language === 'zh' ? '无' : 'None'}
             </span>
           )}
         </div>
@@ -406,6 +341,19 @@ export function CoinSourceEditor({
             <p className="text-xs pl-8 text-nofx-text-muted">
               {t('nofxosNote')}
             </p>
+
+            <label className="flex items-center gap-3 cursor-pointer pl-8">
+              <input
+                type="checkbox"
+                checked={config.filter_hyperliquid}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  !disabled && onChange({ ...config, filter_hyperliquid: e.target.checked })
+                }
+                disabled={disabled}
+                className="w-4 h-4 rounded accent-nofx-gold"
+              />
+              <span className="text-sm text-nofx-text-muted">{t('filterHyperliquid')}</span>
+            </label>
           </div>
         </div>
       )}
@@ -463,6 +411,19 @@ export function CoinSourceEditor({
             <p className="text-xs pl-8 text-nofx-text-muted">
               {t('nofxosNote')}
             </p>
+
+            <label className="flex items-center gap-3 cursor-pointer pl-8">
+              <input
+                type="checkbox"
+                checked={config.filter_hyperliquid}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  !disabled && onChange({ ...config, filter_hyperliquid: e.target.checked })
+                }
+                disabled={disabled}
+                className="w-4 h-4 rounded accent-nofx-success"
+              />
+              <span className="text-sm text-nofx-text-muted">{t('filterHyperliquid')}</span>
+            </label>
           </div>
         </div>
       )}

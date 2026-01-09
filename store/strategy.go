@@ -75,6 +75,8 @@ type CoinSourceConfig struct {
 	UseOITop bool `json:"use_oi_top"`
 	// OI Top maximum count
 	OITopLimit int `json:"oi_top_limit,omitempty"`
+	// Filter coins by Hyperliquid availability
+	FilterHyperliquid bool `json:"filter_hyperliquid"`
 	// Note: API URLs are now built automatically using NofxOSAPIKey from IndicatorConfig
 }
 
