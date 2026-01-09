@@ -14,7 +14,6 @@ import (
 	"nofx/security"
 	"nofx/store"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
