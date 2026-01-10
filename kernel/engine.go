@@ -613,21 +613,8 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 		hlSymbols, err = e.getHyperliquidSymbols()
 		if err != nil {
 			logger.Warnf("⚠️ Failed to get Hyperliquid symbols for filtering: %v", err)
-			// Fallback to no filtering if Hyperliquid symbols cannot be fetched
-			// This means the filter won't be applied, but the strategy can still proceed.
 			logger.Infof("⚠️  Skipping Hyperliquid filter for OI Top due to error. Proceeding with all available OI Top coins.")
-			// Set filteringEnabled to false to skip the filter loop
-			// The original code had `filteringEnabled = false` here, which is correct.
-			// The provided snippet removed this, so I'm re-adding the logic.
-			// The original `filteringEnabled` variable was used, so I'll re-introduce it.
-			// Let's re-evaluate the original structure and integrate the new logs.
-			// Original: `filteringEnabled := e.config.CoinSource.FilterHyperliquid`
-			// Original: `if filteringEnabled { ... } else { ... }`
-			// The new snippet replaces the `if filteringEnabled` block.
-			// I need to ensure the `hlSymbols` and `filteringEnabled` logic is consistent.
-			// The provided snippet for OI Top is also incomplete and has syntax issues.
-			// I will reconstruct it based on the intent and the AI500 example.
-			hlSymbols = nil // Ensure hlSymbols is nil if error, so the check `if hlSymbols != nil` can be used
+			hlSymbols = nil
 		} else {
 			logger.Infof("🔍 Found %d Hyperliquid symbols. Checking OI Top candidates...", len(hlSymbols))
 		}
@@ -643,14 +630,11 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 		}
 		
 		symbol := market.Normalize(pos.Symbol)
-		
+
 		// Apply Hyperliquid filter if enabled and symbols were successfully fetched
 		if e.config.CoinSource.FilterHyperliquid && hlSymbols != nil {
 			baseSymbol := hyperliquid.NormalizeCoinBase(symbol)
 			isAvailable := hlSymbols[baseSymbol]
-			if baseSymbol == "RIVER" { // Debug specific coin
-				logger.Infof("🔍 DEBUG: Checking RIVER. Base: %s, Available: %v", baseSymbol, isAvailable)
-			}
 			if !isAvailable {
 				continue // Skip if not available on Hyperliquid
 			}
@@ -662,11 +646,6 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 		})
 		count++
 	}
-	
-	if e.config.CoinSource.FilterHyperliquid {
-		logger.Infof("✓ Selected %d OI Top coins (filtered by HL availability)", len(candidates))
-	}
-	
 	return candidates, nil
 }
 
