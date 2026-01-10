@@ -636,8 +636,6 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 	}
 
 	count := 0
-	initialOITopCount := len(positions)
-	filteredOITopCount := 0
 
 	for _, pos := range positions {
 		if count >= limit {
@@ -985,27 +983,26 @@ func (e *StrategyEngine) FetchPriceRankingData() *nofxos.PriceRankingData {
 			logger.Warnf("⚠️  Failed to fetch Hyperliquid symbols for filtering: %v. Skipping filter.", err)
 		} else {
 			// Iterate through all durations and filter items
-			for duration, items := range data.Durations {
-				var filteredItems []nofxos.PriceRankingItem
-				for _, item := range items {
-					// Check if symbol exists in Hyperliquid (normalize symbol first)
-					// item.Symbol typically comes as "BTC", "ETH" etc from NofxOS API for rankings
-					// but normalize just in case
-					baseSymbol := item.Symbol
-					// Remove USDT suffix if present for checking (though NofxOS usually returns base)
-					// hyperliquid.NormalizeCoinBase handles this if we had it, but here we can check directly
-					// The getHyperliquidSymbols returns a map of BASE symbols (e.g. "BTC", "ETH")
-					
-					// Basic normalization just in case
-					baseSymbol = strings.TrimSuffix(baseSymbol, "USDT")
-					
+			for _, rankingDuration := range data.Durations {
+				// Filter Top Gainers
+				var filteredTop []nofxos.PriceRankingItem
+				for _, item := range rankingDuration.Top {
+					baseSymbol := strings.TrimSuffix(item.Symbol, "USDT")
 					if hlSymbols[baseSymbol] {
-						filteredItems = append(filteredItems, item)
+						filteredTop = append(filteredTop, item)
 					}
 				}
-				// Update the list or remove duration if empty? 
-				// Better to keep duration even if empty to show no results found
-				data.Durations[duration] = filteredItems
+				rankingDuration.Top = filteredTop
+
+				// Filter Top Losers
+				var filteredLow []nofxos.PriceRankingItem
+				for _, item := range rankingDuration.Low {
+					baseSymbol := strings.TrimSuffix(item.Symbol, "USDT")
+					if hlSymbols[baseSymbol] {
+						filteredLow = append(filteredLow, item)
+					}
+				}
+				rankingDuration.Low = filteredLow
 			}
 			logger.Infof("✓ Price Ranking data filtered by Hyperliquid availability")
 		}
