@@ -211,8 +211,16 @@ func (client *Client) buildMCPRequestBody(systemPrompt, userPrompt string) map[s
 	requestBody := map[string]interface{}{
 		"model":       client.Model,
 		"messages":    messages,
-		"temperature": client.config.Temperature, // Use configured temperature
 	}
+
+	// Handle Temperature for specific models
+	// OpenAI gpt-5 series does not support temperature
+	if strings.HasPrefix(client.Model, "gpt-5") {
+		// Do not set temperature
+	} else {
+		requestBody["temperature"] = client.config.Temperature
+	}
+
 	// OpenAI newer models use max_completion_tokens instead of max_tokens
 	if client.Provider == ProviderOpenAI {
 		requestBody["max_completion_tokens"] = client.MaxTokens
@@ -495,11 +503,18 @@ func (client *Client) buildRequestBodyFromRequest(req *Request) map[string]any {
 	}
 
 	// Add optional parameters (only add non-nil parameters)
-	if req.Temperature != nil {
-		requestBody["temperature"] = *req.Temperature
-	} else {
-		// If not set in Request, use Client's configuration
-		requestBody["temperature"] = client.config.Temperature
+	
+	// Check model type
+	isGPT5 := strings.HasPrefix(req.Model, "gpt-5")
+
+	// Temperature
+	if !isGPT5 {
+		if req.Temperature != nil {
+			requestBody["temperature"] = *req.Temperature
+		} else {
+			// If not set in Request, use Client's configuration
+			requestBody["temperature"] = client.config.Temperature
+		}
 	}
 
 	// OpenAI newer models use max_completion_tokens instead of max_tokens
@@ -514,7 +529,7 @@ func (client *Client) buildRequestBodyFromRequest(req *Request) map[string]any {
 		requestBody[tokenKey] = client.MaxTokens
 	}
 
-	if req.TopP != nil {
+	if !isGPT5 && req.TopP != nil {
 		requestBody["top_p"] = *req.TopP
 	}
 
@@ -526,7 +541,7 @@ func (client *Client) buildRequestBodyFromRequest(req *Request) map[string]any {
 		requestBody["presence_penalty"] = *req.PresencePenalty
 	}
 
-	if len(req.Stop) > 0 {
+	if !isGPT5 && len(req.Stop) > 0 {
 		requestBody["stop"] = req.Stop
 	}
 
