@@ -113,6 +113,7 @@ export function IndicatorEditor({
       connected: { zh: '已配置', en: 'Configured' },
       notConfigured: { zh: '未配置', en: 'Not Configured' },
       nofxosDataSources: { zh: 'NofxOS 数据源', en: 'NofxOS Data Sources' },
+      filterHyperliquid: { zh: '仅选择 Hyperliquid 可交易币种', en: 'Filter by Hyperliquid Availability' },
     }
     return translations[key]?.[language] || key
   }
@@ -367,12 +368,14 @@ export function IndicatorEditor({
                   <input
                     type="checkbox"
                     checked={config.enable_oi_ranking || false}
-                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({
-                      ...config,
-                      enable_oi_ranking: e.target.checked,
-                      ...(e.target.checked && !config.oi_ranking_duration ? { oi_ranking_duration: '1h' } : {}),
-                      ...(e.target.checked && !config.oi_ranking_limit ? { oi_ranking_limit: 10 } : {}),
-                    }) }}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_oi_ranking: e.target.checked,
+                        ...(e.target.checked && !config.oi_ranking_duration ? { oi_ranking_duration: '1h' } : {}),
+                        ...(e.target.checked && !config.oi_ranking_limit ? { oi_ranking_limit: 10 } : {}),
+                      })
+                    }}
                     disabled={disabled}
                     className="w-3.5 h-3.5 rounded accent-green-500"
                   />
@@ -427,12 +430,14 @@ export function IndicatorEditor({
                   <input
                     type="checkbox"
                     checked={config.enable_netflow_ranking || false}
-                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({
-                      ...config,
-                      enable_netflow_ranking: e.target.checked,
-                      ...(e.target.checked && !config.netflow_ranking_duration ? { netflow_ranking_duration: '1h' } : {}),
-                      ...(e.target.checked && !config.netflow_ranking_limit ? { netflow_ranking_limit: 10 } : {}),
-                    }) }}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_netflow_ranking: e.target.checked,
+                        ...(e.target.checked && !config.netflow_ranking_duration ? { netflow_ranking_duration: '1h' } : {}),
+                        ...(e.target.checked && !config.netflow_ranking_limit ? { netflow_ranking_limit: 10 } : {}),
+                      })
+                    }}
                     disabled={disabled}
                     className="w-3.5 h-3.5 rounded accent-amber-500"
                   />
@@ -487,40 +492,54 @@ export function IndicatorEditor({
                   <input
                     type="checkbox"
                     checked={config.enable_price_ranking || false}
-                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({
-                      ...config,
-                      enable_price_ranking: e.target.checked,
-                      ...(e.target.checked && !config.price_ranking_duration ? { price_ranking_duration: '1h,4h,24h' } : {}),
-                      ...(e.target.checked && !config.price_ranking_limit ? { price_ranking_limit: 10 } : {}),
-                    }) }}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_price_ranking: e.target.checked,
+                        ...(e.target.checked && !config.price_ranking_duration ? { price_ranking_duration: '1h,4h,24h' } : {}),
+                        ...(e.target.checked && !config.price_ranking_limit ? { price_ranking_limit: 10 } : {}),
+                      })
+                    }}
                     disabled={disabled}
                     className="w-3.5 h-3.5 rounded accent-pink-500"
                   />
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('priceRankingDesc')}</p>
                 {config.enable_price_ranking && (
-                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={config.price_ranking_duration || '1h,4h,24h'}
-                      onChange={(e) => !disabled && onChange({ ...config, price_ranking_duration: e.target.value })}
-                      disabled={disabled}
-                      className="flex-1 px-2 py-1 rounded text-[10px]"
-                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
-                    >
-                      <option value="1h">1h</option>
-                      <option value="4h">4h</option>
-                      <option value="24h">24h</option>
-                      <option value="1h,4h,24h">{t('priceRankingMulti')}</option>
-                    </select>
-                    <select
-                      value={config.price_ranking_limit || 10}
-                      onChange={(e) => !disabled && onChange({ ...config, price_ranking_limit: parseInt(e.target.value) })}
-                      disabled={disabled}
-                      className="w-14 px-2 py-1 rounded text-[10px]"
-                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
-                    >
-                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
+                  <div className="flex flex-col gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-2">
+                      <select
+                        value={config.price_ranking_duration || '1h,4h,24h'}
+                        onChange={(e) => !disabled && onChange({ ...config, price_ranking_duration: e.target.value })}
+                        disabled={disabled}
+                        className="flex-1 px-2 py-1 rounded text-[10px]"
+                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      >
+                        <option value="1h">1h</option>
+                        <option value="4h">4h</option>
+                        <option value="24h">24h</option>
+                        <option value="1h,4h,24h">{t('priceRankingMulti')}</option>
+                      </select>
+                      <select
+                        value={config.price_ranking_limit || 10}
+                        onChange={(e) => !disabled && onChange({ ...config, price_ranking_limit: parseInt(e.target.value) })}
+                        disabled={disabled}
+                        className="w-14 px-2 py-1 rounded text-[10px]"
+                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      >
+                        {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.price_ranking_filter_hyperliquid || false}
+                        onChange={(e) => !disabled && onChange({ ...config, price_ranking_filter_hyperliquid: e.target.checked })}
+                        disabled={disabled}
+                        className="w-3 h-3 rounded accent-pink-500"
+                      />
+                      <span className="text-[10px]" style={{ color: '#EAECEF' }}>{t('filterHyperliquid')}</span>
+                    </label>
                   </div>
                 )}
               </div>
@@ -623,9 +642,8 @@ export function IndicatorEditor({
                             onClick={() => toggleTimeframe(tf.value)}
                             onDoubleClick={() => setPrimaryTimeframe(tf.value)}
                             disabled={disabled}
-                            className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                              isSelected ? '' : 'opacity-40 hover:opacity-70'
-                            }`}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-all ${isSelected ? '' : 'opacity-40 hover:opacity-70'
+                              }`}
                             style={{
                               background: isSelected ? `${categoryColors[category]}15` : 'transparent',
                               border: `1px solid ${isSelected ? categoryColors[category] : '#2B3139'}`,

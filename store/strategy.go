@@ -126,9 +126,10 @@ type IndicatorConfig struct {
 	NetFlowRankingLimit    int    `json:"netflow_ranking_limit,omitempty"`    // number of entries (default 10)
 
 	// Price ranking data (market-wide gainers/losers)
-	EnablePriceRanking   bool   `json:"enable_price_ranking"`             // whether to enable price ranking data
-	PriceRankingDuration string `json:"price_ranking_duration,omitempty"` // durations: "1h" or "1h,4h,24h"
-	PriceRankingLimit    int    `json:"price_ranking_limit,omitempty"`    // number of entries per ranking (default 10)
+	EnablePriceRanking            bool   `json:"enable_price_ranking"`                       // whether to enable price ranking data
+	PriceRankingDuration          string `json:"price_ranking_duration,omitempty"`           // durations: "1h" or "1h,4h,24h"
+	PriceRankingLimit             int    `json:"price_ranking_limit,omitempty"`              // number of entries per ranking (default 10)
+	PriceRankingFilterHyperliquid bool   `json:"price_ranking_filter_hyperliquid,omitempty"` // whether to filter by Hyperliquid availability
 }
 
 // KlineConfig K-line configuration

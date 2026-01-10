@@ -526,6 +526,7 @@ export interface IndicatorConfig {
   enable_price_ranking?: boolean;
   price_ranking_duration?: string;  // "1h", "4h", "24h" or "1h,4h,24h"
   price_ranking_limit?: number;
+  price_ranking_filter_hyperliquid?: boolean;
 }
 
 export interface KlineConfig {

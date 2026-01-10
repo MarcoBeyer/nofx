@@ -977,6 +977,40 @@ func (e *StrategyEngine) FetchPriceRankingData() *nofxos.PriceRankingData {
 		return nil
 	}
 
+	// Filter by Hyperliquid availability if enabled
+	if indicators.PriceRankingFilterHyperliquid {
+		logger.Infof("🔍 Filtering Price Ranking data by Hyperliquid availability...")
+		hlSymbols, err := e.getHyperliquidSymbols()
+		if err != nil {
+			logger.Warnf("⚠️  Failed to fetch Hyperliquid symbols for filtering: %v. Skipping filter.", err)
+		} else {
+			// Iterate through all durations and filter items
+			for duration, items := range data.Durations {
+				var filteredItems []nofxos.PriceRankingItem
+				for _, item := range items {
+					// Check if symbol exists in Hyperliquid (normalize symbol first)
+					// item.Symbol typically comes as "BTC", "ETH" etc from NofxOS API for rankings
+					// but normalize just in case
+					baseSymbol := item.Symbol
+					// Remove USDT suffix if present for checking (though NofxOS usually returns base)
+					// hyperliquid.NormalizeCoinBase handles this if we had it, but here we can check directly
+					// The getHyperliquidSymbols returns a map of BASE symbols (e.g. "BTC", "ETH")
+					
+					// Basic normalization just in case
+					baseSymbol = strings.TrimSuffix(baseSymbol, "USDT")
+					
+					if hlSymbols[baseSymbol] {
+						filteredItems = append(filteredItems, item)
+					}
+				}
+				// Update the list or remove duration if empty? 
+				// Better to keep duration even if empty to show no results found
+				data.Durations[duration] = filteredItems
+			}
+			logger.Infof("✓ Price Ranking data filtered by Hyperliquid availability")
+		}
+	}
+
 	logger.Infof("✓ Price ranking data ready for %d durations", len(data.Durations))
 
 	return data
