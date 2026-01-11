@@ -797,7 +797,13 @@ func (at *AutoTrader) buildTradingContext() (*kernel.Context, error) {
 	}
 	candidateCoins, err := at.strategyEngine.GetCandidateCoins()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get candidate coins: %w", err)
+		// If there are active positions, we should continue managing them even if we can't fetch new candidates
+		if len(positionInfos) > 0 {
+			logger.Warnf("⚠️  Failed to get candidate coins: %v. Creating context with %d active positions only.", err, len(positionInfos))
+			candidateCoins = []kernel.CandidateCoin{}
+		} else {
+			return nil, fmt.Errorf("failed to get candidate coins: %w", err)
+		}
 	}
 	logger.Infof("📋 [%s] Strategy engine fetched candidate coins: %d", at.name, len(candidateCoins))
 
