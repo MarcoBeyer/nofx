@@ -596,6 +596,12 @@ func (t *OKXTrader) OpenLong(symbol string, quantity float64, leverage int) (map
 	sz := quantity / inst.CtVal
 	szStr := t.formatSize(sz, inst)
 
+	// Check if contract size is 0
+	szFloat, _ := strconv.ParseFloat(szStr, 64)
+	if szFloat <= 0 {
+		return nil, fmt.Errorf("failed to open long position: position size %.8f is too small for %s (rounds to 0 contracts)", quantity, symbol)
+	}
+
 	logger.Infof("  📊 OKX OpenLong: quantity=%.6f, ctVal=%.6f, contracts=%.2f", quantity, inst.CtVal, sz)
 
 	// Check max market order size limit
@@ -672,6 +678,12 @@ func (t *OKXTrader) OpenShort(symbol string, quantity float64, leverage int) (ma
 	// sz = quantity / ctVal (number of contracts = asset amount / asset per contract)
 	sz := quantity / inst.CtVal
 	szStr := t.formatSize(sz, inst)
+
+	// Check if contract size is 0
+	szFloat, _ := strconv.ParseFloat(szStr, 64)
+	if szFloat <= 0 {
+		return nil, fmt.Errorf("failed to open short position: position size %.8f is too small for %s (rounds to 0 contracts)", quantity, symbol)
+	}
 
 	logger.Infof("  📊 OKX OpenShort: quantity=%.6f, ctVal=%.6f, contracts=%.2f", quantity, inst.CtVal, sz)
 
@@ -785,6 +797,12 @@ func (t *OKXTrader) CloseLong(symbol string, quantity float64) (map[string]inter
 	contracts := quantity / inst.CtVal
 	szStr := t.formatSize(contracts, inst)
 
+	// Check if contract size is 0
+	szFloat, _ := strconv.ParseFloat(szStr, 64)
+	if szFloat <= 0 {
+		return nil, fmt.Errorf("failed to close long position: position size %.8f is too small for %s (rounds to 0 contracts)", quantity, symbol)
+	}
+
 	logger.Infof("🔻 OKX close long: symbol=%s, instId=%s, quantity=%.6f, ctVal=%.6f, contracts=%.2f, szStr=%s, posMode=%s, mgnMode=%s",
 		symbol, instId, quantity, inst.CtVal, contracts, szStr, t.positionMode, posMgnMode)
 
@@ -895,6 +913,12 @@ func (t *OKXTrader) CloseShort(symbol string, quantity float64) (map[string]inte
 	// contracts = quantity / ctVal
 	contracts := quantity / inst.CtVal
 	szStr := t.formatSize(contracts, inst)
+
+	// Check if contract size is 0
+	szFloat, _ := strconv.ParseFloat(szStr, 64)
+	if szFloat <= 0 {
+		return nil, fmt.Errorf("failed to close short position: position size %.8f is too small for %s (rounds to 0 contracts)", quantity, symbol)
+	}
 
 	logger.Infof("🔻 OKX close short: symbol=%s, quantity=%.6f, ctVal=%.6f, contracts=%.2f, szStr=%s, posMode=%s, mgnMode=%s",
 		symbol, quantity, inst.CtVal, contracts, szStr, t.positionMode, posMgnMode)
@@ -1304,19 +1328,19 @@ func (t *OKXTrader) GetClosedPnL(startTime time.Time, limit int) ([]ClosedPnLRec
 		Code string `json:"code"`
 		Msg  string `json:"msg"`
 		Data []struct {
-			InstID      string `json:"instId"`      // Instrument ID (e.g., "BTC-USDT-SWAP")
-			Direction   string `json:"direction"`   // Position direction: "long" or "short"
-			OpenAvgPx   string `json:"openAvgPx"`   // Average open price
-			CloseAvgPx  string `json:"closeAvgPx"`  // Average close price
+			InstID        string `json:"instId"`        // Instrument ID (e.g., "BTC-USDT-SWAP")
+			Direction     string `json:"direction"`     // Position direction: "long" or "short"
+			OpenAvgPx     string `json:"openAvgPx"`     // Average open price
+			CloseAvgPx    string `json:"closeAvgPx"`    // Average close price
 			CloseTotalPos string `json:"closeTotalPos"` // Closed position quantity
-			RealizedPnl string `json:"realizedPnl"` // Realized PnL
-			Fee         string `json:"fee"`         // Total fee
-			FundingFee  string `json:"fundingFee"`  // Funding fee
-			Lever       string `json:"lever"`       // Leverage
-			CTime       string `json:"cTime"`       // Position open time
-			UTime       string `json:"uTime"`       // Position close time
-			Type        string `json:"type"`        // Close type: 1=close position, 2=partial close, 3=liquidation, 4=partial liquidation
-			PosId       string `json:"posId"`       // Position ID
+			RealizedPnl   string `json:"realizedPnl"`   // Realized PnL
+			Fee           string `json:"fee"`           // Total fee
+			FundingFee    string `json:"fundingFee"`    // Funding fee
+			Lever         string `json:"lever"`         // Leverage
+			CTime         string `json:"cTime"`         // Position open time
+			UTime         string `json:"uTime"`         // Position close time
+			Type          string `json:"type"`          // Close type: 1=close position, 2=partial close, 3=liquidation, 4=partial liquidation
+			PosId         string `json:"posId"`         // Position ID
 		} `json:"data"`
 	}
 

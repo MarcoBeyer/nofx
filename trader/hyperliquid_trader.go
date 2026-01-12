@@ -740,6 +740,11 @@ func (t *HyperliquidTrader) OpenLong(symbol string, quantity float64, leverage i
 		roundedQuantity := t.roundToSzDecimals(coin, quantity)
 		logger.Infof("  📏 Quantity precision handling: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
 
+		// Check if rounded quantity is 0 (prevent "Order has zero size" error)
+		if roundedQuantity <= 0 {
+			return nil, fmt.Errorf("failed to open long position: position size %.8f is too small for %s (rounds to 0). Suggest increasing position amount or selecting a different coin", quantity, coin)
+		}
+
 		order := hyperliquid.CreateOrderRequest{
 			Coin:  coin,
 			IsBuy: true,
@@ -811,6 +816,11 @@ func (t *HyperliquidTrader) OpenShort(symbol string, quantity float64, leverage 
 		// Standard crypto order
 		roundedQuantity := t.roundToSzDecimals(coin, quantity)
 		logger.Infof("  📏 Quantity precision handling: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+
+		// Check if rounded quantity is 0 (prevent "Order has zero size" error)
+		if roundedQuantity <= 0 {
+			return nil, fmt.Errorf("failed to open short position: position size %.8f is too small for %s (rounds to 0). Suggest increasing position amount or selecting a different coin", quantity, coin)
+		}
 
 		order := hyperliquid.CreateOrderRequest{
 			Coin:  coin,
@@ -893,6 +903,11 @@ func (t *HyperliquidTrader) CloseLong(symbol string, quantity float64) (map[stri
 		// Standard crypto close order
 		roundedQuantity := t.roundToSzDecimals(coin, quantity)
 		logger.Infof("  📏 Quantity precision handling: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+
+		// Check if rounded quantity is 0 (prevent "Order has zero size" error)
+		if roundedQuantity <= 0 {
+			return nil, fmt.Errorf("failed to close long position: position size %.8f is too small for %s (rounds to 0)", quantity, coin)
+		}
 
 		order := hyperliquid.CreateOrderRequest{
 			Coin:  coin,
@@ -980,6 +995,11 @@ func (t *HyperliquidTrader) CloseShort(symbol string, quantity float64) (map[str
 		// Standard crypto close order
 		roundedQuantity := t.roundToSzDecimals(coin, quantity)
 		logger.Infof("  📏 Quantity precision handling: %.8f -> %.8f (szDecimals=%d)", quantity, roundedQuantity, t.getSzDecimals(coin))
+
+		// Check if rounded quantity is 0 (prevent "Order has zero size" error)
+		if roundedQuantity <= 0 {
+			return nil, fmt.Errorf("failed to close short position: position size %.8f is too small for %s (rounds to 0)", quantity, coin)
+		}
 
 		order := hyperliquid.CreateOrderRequest{
 			Coin:  coin,
@@ -1380,6 +1400,11 @@ func (t *HyperliquidTrader) placeXyzOrder(coin string, isBuy bool, size float64,
 		multiplier *= 10.0
 	}
 	roundedSize := float64(int(size*multiplier+0.5)) / multiplier
+
+	// Check if rounded size is 0
+	if roundedSize <= 0 {
+		return fmt.Errorf("failed to place xyz dex order: position size %.8f is too small for %s (rounds to 0)", size, coin)
+	}
 
 	// Round price to 5 significant figures
 	roundedPrice := t.roundPriceToSigfigs(price)
