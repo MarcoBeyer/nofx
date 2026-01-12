@@ -1832,6 +1832,10 @@ func (t *HyperliquidTrader) getSzDecimals(coin string) int {
 	// Find corresponding coin in meta.Universe
 	for _, asset := range t.meta.Universe {
 		if asset.Name == coin {
+			if asset.SzDecimals == 0 {
+				logger.Infof("⚠️  Precision for %s is 0, defaulting to 4 to allow fractional trades", coin)
+				return 4
+			}
 			return asset.SzDecimals
 		}
 	}
