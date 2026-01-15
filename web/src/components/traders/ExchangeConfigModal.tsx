@@ -25,6 +25,7 @@ const SUPPORTED_EXCHANGE_TEMPLATES = [
   { exchange_type: 'hyperliquid', name: 'Hyperliquid', type: 'dex' as const },
   { exchange_type: 'aster', name: 'Aster DEX', type: 'dex' as const },
   { exchange_type: 'lighter', name: 'Lighter', type: 'dex' as const },
+  { exchange_type: 'alpaca', name: 'Alpaca (Stocks)', type: 'cex' as const },
 ]
 
 interface ExchangeConfigModalProps {
@@ -129,6 +130,7 @@ export function ExchangeConfigModal({
     hyperliquid: { url: 'https://app.hyperliquid.xyz/join/AITRADING', hasReferral: true },
     aster: { url: 'https://www.asterdex.com/en/referral/fdfc0e', hasReferral: true },
     lighter: { url: 'https://app.lighter.xyz/?referral=68151432', hasReferral: true },
+    alpaca: { url: 'https://alpaca.markets/', hasReferral: false },
   }
 
   // 如果是编辑现有交易所，初始化表单数据
@@ -335,6 +337,9 @@ export function ExchangeConfigModal({
           lighterApiKeyPrivateKey.trim(),
           lighterApiKeyIndex
         )
+      } else if (currentExchangeType === 'alpaca') {
+        if (!apiKey.trim() || !secretKey.trim()) return
+        await onSave(exchangeId, exchangeType, trimmedAccountName, apiKey.trim(), secretKey.trim(), '', testnet)
       } else {
         // 默认情况（其他CEX交易所）
         if (!apiKey.trim() || !secretKey.trim()) return
@@ -540,11 +545,12 @@ export function ExchangeConfigModal({
 
             {selectedTemplate && (
               <>
-                {/* Binance/Bybit/OKX/Bitget 的输入字段 */}
+                {/* Binance/Bybit/OKX/Bitget/Alpaca 的输入字段 */}
                 {(currentExchangeType === 'binance' ||
                   currentExchangeType === 'bybit' ||
                   currentExchangeType === 'okx' ||
-                  currentExchangeType === 'bitget') && (
+                  currentExchangeType === 'bitget' ||
+                  currentExchangeType === 'alpaca') && (
                     <>
                       {/* 币安用户配置提示 (D1 方案) */}
                       {currentExchangeType === 'binance' && (
@@ -768,6 +774,50 @@ export function ExchangeConfigModal({
                               </button>
                             </div>
                           ) : null}
+                        </div>
+                      )}
+
+                      {/* Alpaca Paper Trading Toggle */}
+                      {currentExchangeType === 'alpaca' && (
+                        <div
+                          className="p-4 rounded"
+                          style={{
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                          }}
+                        >
+                          <div
+                            className="text-sm font-semibold mb-2"
+                            style={{ color: '#22c55e' }}
+                          >
+                            {language === 'zh' ? '交易模式' : 'Trading Mode'}
+                          </div>
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={testnet}
+                              onChange={(e) => setTestnet(e.target.checked)}
+                              className="w-5 h-5 rounded accent-green-500"
+                            />
+                            <div>
+                              <span className="text-sm font-medium" style={{ color: '#EAECEF' }}>
+                                {language === 'zh' ? '模拟交易 (Paper Trading)' : 'Paper Trading'}
+                              </span>
+                              <div className="text-xs" style={{ color: '#848E9C' }}>
+                                {language === 'zh'
+                                  ? '开启后使用 Alpaca 模拟账户，无真实资金风险'
+                                  : 'Enable to use Alpaca paper trading account with no real money risk'}
+                              </div>
+                            </div>
+                          </label>
+                          {testnet && (
+                            <div
+                              className="mt-2 px-2 py-1 rounded text-xs"
+                              style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e' }}
+                            >
+                              ✓ {language === 'zh' ? '使用 Paper Trading API' : 'Using Paper Trading API'}
+                            </div>
+                          )}
                         </div>
                       )}
                     </>
