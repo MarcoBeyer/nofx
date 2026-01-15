@@ -118,15 +118,19 @@ export function IndicatorEditor({
       // Stock Data Provider (Finnhub)
       stockDataTitle: { zh: 'Finnhub 股票数据源', en: 'Finnhub Stock Data Provider' },
       stockDataDesc: { zh: '股票市场数据服务', en: 'Stock market data service' },
-      stockDataFeatures: { zh: '股票新闻 · 市场动态', en: 'Stock News · Market Movers' },
+      stockDataFeatures: { zh: '新闻 · 涨跌榜 · 成交量 · 情绪', en: 'News · Gainers/Losers · Volume · Sentiment' },
       stockDataSources: { zh: 'Finnhub 数据源', en: 'Finnhub Data Sources' },
       stockNews: { zh: '股票新闻', en: 'Stock News' },
       stockNewsDesc: { zh: '公司及市场新闻', en: 'Company & market news' },
       stockNewsNote: { zh: '获取相关股票的最新新闻，帮助AI理解市场情绪', en: 'Fetch latest news for selected stocks, helps AI understand market sentiment' },
-      stockNewsLimit: { zh: '每股新闻数', en: 'News per stock' },
-      stockNewsDays: { zh: '回溯天数', en: 'Lookback days' },
-      stockScreenerData: { zh: '股票筛选数据', en: 'Stock Screener Data' },
-      stockScreenerDesc: { zh: '涨跌幅、动量排行', en: 'Gainers, losers, momentum' },
+      stockNewsLimit: { zh: '每股新闻数', en: 'per stock' },
+      stockNewsDays: { zh: '回溯天数', en: 'days' },
+      stockGainers: { zh: '涨跌幅排行', en: 'Gainers/Losers' },
+      stockGainersDesc: { zh: '涨幅/跌幅前列股票', en: 'Top gaining and losing stocks' },
+      stockVolume: { zh: '成交量异动', en: 'Volume Movers' },
+      stockVolumeDesc: { zh: '成交量异常放大股票', en: 'High volume activity stocks' },
+      stockSentiment: { zh: '市场情绪', en: 'Market Sentiment' },
+      stockSentimentDesc: { zh: '整体市场指标与情绪', en: 'Overall market indicators' },
       stockDataEnvNote: { zh: '需设置 FINNHUB_API_KEY 环境变量', en: 'Requires FINNHUB_API_KEY environment variable' },
     }
     return translations[key]?.[language] || key
@@ -636,7 +640,7 @@ export function IndicatorEditor({
             <div className="text-[10px] font-medium mb-2" style={{ color: '#848E9C' }}>
               {t('stockDataSources')}
             </div>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {/* Stock News */}
               <div
                 className="p-2.5 rounded-lg transition-all cursor-pointer"
@@ -674,33 +678,151 @@ export function IndicatorEditor({
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('stockNewsDesc')}</p>
                 {config.enable_stock_news && (
-                  <div className="flex gap-3 mt-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px]" style={{ color: '#848E9C' }}>{t('stockNewsLimit')}:</span>
-                      <select
-                        value={config.stock_news_limit || 3}
-                        onChange={(e) => !disabled && onChange({ ...config, stock_news_limit: parseInt(e.target.value) })}
-                        disabled={disabled}
-                        className="px-2 py-1 rounded text-[10px]"
-                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
-                      >
-                        {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px]" style={{ color: '#848E9C' }}>{t('stockNewsDays')}:</span>
-                      <select
-                        value={config.stock_news_days || 3}
-                        onChange={(e) => !disabled && onChange({ ...config, stock_news_days: parseInt(e.target.value) })}
-                        disabled={disabled}
-                        className="px-2 py-1 rounded text-[10px]"
-                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
-                      >
-                        {[1, 3, 7, 14, 30].map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
-                    </div>
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={config.stock_news_limit || 3}
+                      onChange={(e) => !disabled && onChange({ ...config, stock_news_limit: parseInt(e.target.value) })}
+                      disabled={disabled}
+                      className="flex-1 px-2 py-1 rounded text-[10px]"
+                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                    >
+                      {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n} {t('stockNewsLimit')}</option>)}
+                    </select>
+                    <select
+                      value={config.stock_news_days || 3}
+                      onChange={(e) => !disabled && onChange({ ...config, stock_news_days: parseInt(e.target.value) })}
+                      disabled={disabled}
+                      className="flex-1 px-2 py-1 rounded text-[10px]"
+                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                    >
+                      {[1, 3, 7, 14, 30].map(n => <option key={n} value={n}>{n} {t('stockNewsDays')}</option>)}
+                    </select>
                   </div>
                 )}
+              </div>
+
+              {/* Stock Gainers/Losers */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_gainers ? 'rgba(236, 72, 153, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_gainers ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({
+                  ...config,
+                  enable_stock_gainers: !config.enable_stock_gainers,
+                  ...(!config.enable_stock_gainers && !config.stock_gainers_limit ? { stock_gainers_limit: 10 } : {}),
+                })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#ec4899' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{t('stockGainers')}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enable_stock_gainers || false}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_stock_gainers: e.target.checked,
+                        ...(e.target.checked && !config.stock_gainers_limit ? { stock_gainers_limit: 10 } : {}),
+                      })
+                    }}
+                    disabled={disabled}
+                    className="w-3.5 h-3.5 rounded accent-pink-500"
+                  />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('stockGainersDesc')}</p>
+                {config.enable_stock_gainers && (
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={config.stock_gainers_limit || 10}
+                      onChange={(e) => !disabled && onChange({ ...config, stock_gainers_limit: parseInt(e.target.value) })}
+                      disabled={disabled}
+                      className="flex-1 px-2 py-1 rounded text-[10px]"
+                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                    >
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Volume Movers */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_volume ? 'rgba(245, 158, 11, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_volume ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({
+                  ...config,
+                  enable_stock_volume: !config.enable_stock_volume,
+                  ...(!config.enable_stock_volume && !config.stock_volume_limit ? { stock_volume_limit: 10 } : {}),
+                })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#f59e0b' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{t('stockVolume')}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enable_stock_volume || false}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_stock_volume: e.target.checked,
+                        ...(e.target.checked && !config.stock_volume_limit ? { stock_volume_limit: 10 } : {}),
+                      })
+                    }}
+                    disabled={disabled}
+                    className="w-3.5 h-3.5 rounded accent-amber-500"
+                  />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('stockVolumeDesc')}</p>
+                {config.enable_stock_volume && (
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={config.stock_volume_limit || 10}
+                      onChange={(e) => !disabled && onChange({ ...config, stock_volume_limit: parseInt(e.target.value) })}
+                      disabled={disabled}
+                      className="flex-1 px-2 py-1 rounded text-[10px]"
+                      style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                    >
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Market Sentiment */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_sentiment ? 'rgba(96, 165, 250, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_sentiment ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({ ...config, enable_stock_sentiment: !config.enable_stock_sentiment })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#60a5fa' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{t('stockSentiment')}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enable_stock_sentiment || false}
+                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({ ...config, enable_stock_sentiment: e.target.checked }) }}
+                    disabled={disabled}
+                    className="w-3.5 h-3.5 rounded accent-blue-500"
+                  />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('stockSentimentDesc')}</p>
               </div>
             </div>
           </div>

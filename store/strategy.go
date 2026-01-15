@@ -145,6 +145,17 @@ type IndicatorConfig struct {
 	EnableStockNews bool `json:"enable_stock_news"`          // whether to enable stock news in prompts
 	StockNewsLimit  int  `json:"stock_news_limit,omitempty"` // articles per stock (default 3)
 	StockNewsDays   int  `json:"stock_news_days,omitempty"`  // lookback days (default 3)
+
+	// Stock gainers/losers ranking (Finnhub screener)
+	EnableStockGainers bool `json:"enable_stock_gainers"`          // top gainers and losers
+	StockGainersLimit  int  `json:"stock_gainers_limit,omitempty"` // number of stocks (default 10)
+
+	// Stock volume movers (high volume activity)
+	EnableStockVolume bool `json:"enable_stock_volume"`          // high volume stocks
+	StockVolumeLimit  int  `json:"stock_volume_limit,omitempty"` // number of stocks (default 10)
+
+	// Stock market sentiment (overall market indicators)
+	EnableStockSentiment bool `json:"enable_stock_sentiment"` // market sentiment indicators
 }
 
 // KlineConfig K-line configuration

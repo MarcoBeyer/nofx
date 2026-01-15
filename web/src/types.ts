@@ -536,6 +536,17 @@ export interface IndicatorConfig {
   enable_stock_news?: boolean;
   stock_news_limit?: number;   // articles per stock (default 3)
   stock_news_days?: number;    // lookback days (default 3)
+
+  // Stock gainers/losers ranking (Finnhub screener)
+  enable_stock_gainers?: boolean;
+  stock_gainers_limit?: number;  // default 10
+
+  // Stock volume movers (high volume activity)
+  enable_stock_volume?: boolean;
+  stock_volume_limit?: number;   // default 10
+
+  // Stock market sentiment (overall market indicators)
+  enable_stock_sentiment?: boolean;
 }
 
 export interface KlineConfig {

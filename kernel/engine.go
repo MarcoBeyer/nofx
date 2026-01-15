@@ -897,6 +897,80 @@ func (e *StrategyEngine) fetchAndFormatStockNews(candidates []CandidateCoin) str
 	return sb.String()
 }
 
+// fetchAndFormatStockGainersLosers fetches and formats stock gainers/losers for AI prompt
+func (e *StrategyEngine) fetchAndFormatStockGainersLosers() string {
+	client := finnhub.DefaultClient()
+	if client.GetAPIKey() == "" {
+		return ""
+	}
+
+	limit := e.config.Indicators.StockGainersLimit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Fetch gainers and losers
+	gainers, err := client.GetTopGainers(limit)
+	if err != nil {
+		logger.Infof("⚠️ Failed to get stock gainers: %v", err)
+		return ""
+	}
+
+	losers, err := client.GetTopLosers(limit)
+	if err != nil {
+		logger.Infof("⚠️ Failed to get stock losers: %v", err)
+		// Continue with just gainers if losers fail
+	}
+
+	if len(gainers) == 0 && len(losers) == 0 {
+		return ""
+	}
+
+	return finnhub.FormatGainersLosersForPrompt(gainers, losers, limit)
+}
+
+// fetchAndFormatStockVolume fetches and formats high volume stocks for AI prompt
+func (e *StrategyEngine) fetchAndFormatStockVolume() string {
+	client := finnhub.DefaultClient()
+	if client.GetAPIKey() == "" {
+		return ""
+	}
+
+	limit := e.config.Indicators.StockVolumeLimit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Use momentum as proxy for volume movers (stocks with biggest moves)
+	stocks, err := client.GetTopMomentum(limit)
+	if err != nil {
+		logger.Infof("⚠️ Failed to get stock volume movers: %v", err)
+		return ""
+	}
+
+	if len(stocks) == 0 {
+		return ""
+	}
+
+	return finnhub.FormatVolumeMoversForPrompt(stocks, limit)
+}
+
+// fetchAndFormatStockSentiment fetches and formats market sentiment for AI prompt
+func (e *StrategyEngine) fetchAndFormatStockSentiment() string {
+	client := finnhub.DefaultClient()
+	if client.GetAPIKey() == "" {
+		return ""
+	}
+
+	sentiment, err := client.GetMarketSentiment()
+	if err != nil {
+		logger.Infof("⚠️ Failed to get market sentiment: %v", err)
+		return ""
+	}
+
+	return finnhub.FormatMarketSentimentForPrompt(sentiment)
+}
+
 // ============================================================================
 // External & Quant Data
 // ============================================================================
@@ -1593,6 +1667,30 @@ func (e *StrategyEngine) BuildUserPrompt(ctx *Context) string {
 		newsSection := e.fetchAndFormatStockNews(ctx.CandidateCoins)
 		if newsSection != "" {
 			sb.WriteString(newsSection)
+		}
+	}
+
+	// Stock Gainers/Losers (Finnhub) - for stock trading context
+	if e.config.Indicators.EnableStockGainers && e.config.CoinSource.SourceType == "stock_screener" {
+		gainersSection := e.fetchAndFormatStockGainersLosers()
+		if gainersSection != "" {
+			sb.WriteString(gainersSection)
+		}
+	}
+
+	// Stock Volume Movers (Finnhub) - for stock trading context
+	if e.config.Indicators.EnableStockVolume && e.config.CoinSource.SourceType == "stock_screener" {
+		volumeSection := e.fetchAndFormatStockVolume()
+		if volumeSection != "" {
+			sb.WriteString(volumeSection)
+		}
+	}
+
+	// Stock Market Sentiment (Finnhub) - for stock trading context
+	if e.config.Indicators.EnableStockSentiment && e.config.CoinSource.SourceType == "stock_screener" {
+		sentimentSection := e.fetchAndFormatStockSentiment()
+		if sentimentSection != "" {
+			sb.WriteString(sentimentSection)
 		}
 	}
 

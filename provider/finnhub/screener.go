@@ -237,6 +237,159 @@ func (c *Client) GetTopRatedStocks(limit int) ([]string, error) {
 	return symbols, nil
 }
 
+// MarketSentiment represents overall market sentiment indicators
+type MarketSentiment struct {
+	MarketStatus string  `json:"market_status"` // "open", "closed", "pre-market", "after-hours"
+	SPYChange    float64 `json:"spy_change"`    // S&P 500 ETF change %
+	QQQChange    float64 `json:"qqq_change"`    // Nasdaq 100 ETF change %
+	IWMChange    float64 `json:"iwm_change"`    // Russell 2000 ETF change %
+	VIXLevel     float64 `json:"vix_level"`     // VIX level (if available)
+	OverallTrend string  `json:"overall_trend"` // "bullish", "bearish", "neutral"
+	GainerCount  int     `json:"gainer_count"`  // Number of gainers in watchlist
+	LoserCount   int     `json:"loser_count"`   // Number of losers in watchlist
+}
+
+// GetMarketSentiment fetches overall market sentiment indicators
+func (c *Client) GetMarketSentiment() (*MarketSentiment, error) {
+	log.Printf("📊 Fetching market sentiment...")
+
+	// Get market status
+	status, err := c.GetMarketStatus()
+	marketStatus := "unknown"
+	if err == nil && status != nil {
+		if status.IsOpen {
+			marketStatus = "open"
+		} else {
+			marketStatus = "closed"
+		}
+	}
+
+	// Fetch key ETF quotes for market sentiment
+	etfs := []string{"SPY", "QQQ", "IWM"}
+	var spyChange, qqqChange, iwmChange float64
+
+	for _, etf := range etfs {
+		quote, err := c.GetQuote(etf)
+		if err != nil {
+			continue
+		}
+		switch etf {
+		case "SPY":
+			spyChange = quote.PercentChange
+		case "QQQ":
+			qqqChange = quote.PercentChange
+		case "IWM":
+			iwmChange = quote.PercentChange
+		}
+		time.Sleep(100 * time.Millisecond) // Rate limit
+	}
+
+	// Determine overall trend
+	avgChange := (spyChange + qqqChange + iwmChange) / 3
+	overallTrend := "neutral"
+	if avgChange > 0.5 {
+		overallTrend = "bullish"
+	} else if avgChange < -0.5 {
+		overallTrend = "bearish"
+	}
+
+	// Count gainers vs losers in popular stocks
+	gainerCount, loserCount := 0, 0
+	for _, symbol := range popularStocks[:20] { // Sample first 20
+		quote, err := c.GetQuote(symbol)
+		if err != nil {
+			continue
+		}
+		if quote.PercentChange > 0 {
+			gainerCount++
+		} else if quote.PercentChange < 0 {
+			loserCount++
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	sentiment := &MarketSentiment{
+		MarketStatus: marketStatus,
+		SPYChange:    spyChange,
+		QQQChange:    qqqChange,
+		IWMChange:    iwmChange,
+		OverallTrend: overallTrend,
+		GainerCount:  gainerCount,
+		LoserCount:   loserCount,
+	}
+
+	log.Printf("✓ Market sentiment: %s (SPY: %.2f%%, QQQ: %.2f%%, Trend: %s)",
+		marketStatus, spyChange, qqqChange, overallTrend)
+
+	return sentiment, nil
+}
+
+// FormatGainersLosersForPrompt formats top gainers and losers for AI prompt
+func FormatGainersLosersForPrompt(gainers, losers []ScreenedStock, limit int) string {
+	var sb strings.Builder
+	sb.WriteString("\n## 📈 Stock Gainers/Losers\n\n")
+
+	if len(gainers) > 0 {
+		sb.WriteString("**Top Gainers:**\n")
+		for i, s := range gainers {
+			if i >= limit {
+				break
+			}
+			sb.WriteString(fmt.Sprintf("- %s: +%.2f%% ($%.2f)\n", s.Symbol, s.PercentChange, s.Price))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(losers) > 0 {
+		sb.WriteString("**Top Losers:**\n")
+		for i, s := range losers {
+			if i >= limit {
+				break
+			}
+			sb.WriteString(fmt.Sprintf("- %s: %.2f%% ($%.2f)\n", s.Symbol, s.PercentChange, s.Price))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// FormatVolumeMoversForPrompt formats high volume stocks for AI prompt
+func FormatVolumeMoversForPrompt(stocks []ScreenedStock, limit int) string {
+	var sb strings.Builder
+	sb.WriteString("\n## 📊 Volume Movers (High Activity)\n\n")
+
+	for i, s := range stocks {
+		if i >= limit {
+			break
+		}
+		direction := "↑"
+		if s.PercentChange < 0 {
+			direction = "↓"
+		}
+		sb.WriteString(fmt.Sprintf("- %s %s %.2f%% ($%.2f)\n", s.Symbol, direction, s.PercentChange, s.Price))
+	}
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+// FormatMarketSentimentForPrompt formats market sentiment for AI prompt
+func FormatMarketSentimentForPrompt(sentiment *MarketSentiment) string {
+	var sb strings.Builder
+	sb.WriteString("\n## 🎯 Market Sentiment\n\n")
+
+	sb.WriteString(fmt.Sprintf("- **Market Status:** %s\n", strings.ToUpper(sentiment.MarketStatus)))
+	sb.WriteString(fmt.Sprintf("- **S&P 500 (SPY):** %+.2f%%\n", sentiment.SPYChange))
+	sb.WriteString(fmt.Sprintf("- **Nasdaq (QQQ):** %+.2f%%\n", sentiment.QQQChange))
+	sb.WriteString(fmt.Sprintf("- **Russell 2000 (IWM):** %+.2f%%\n", sentiment.IWMChange))
+	sb.WriteString(fmt.Sprintf("- **Overall Trend:** %s\n", strings.ToUpper(sentiment.OverallTrend)))
+	sb.WriteString(fmt.Sprintf("- **Market Breadth:** %d gainers / %d losers\n", sentiment.GainerCount, sentiment.LoserCount))
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
 func abs(x float64) float64 {
 	if x < 0 {
 		return -x
