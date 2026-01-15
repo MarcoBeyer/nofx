@@ -473,7 +473,7 @@ export interface StrategyConfig {
 }
 
 export interface CoinSourceConfig {
-  source_type: 'static' | 'ai500' | 'oi_top' | 'mixed';
+  source_type: 'static' | 'ai500' | 'oi_top' | 'mixed' | 'stock_screener';
   static_coins?: string[];
   excluded_coins?: string[];   // 排除的币种列表
   use_ai500: boolean;
@@ -482,6 +482,10 @@ export interface CoinSourceConfig {
   oi_top_limit?: number;
   filter_hyperliquid?: boolean;
   // Note: API URLs are now built automatically using nofxos_api_key from IndicatorConfig
+  // Stock screener configuration (Finnhub)
+  use_stock_screener?: boolean;
+  stock_screener_type?: 'gainers' | 'losers' | 'momentum';
+  stock_screener_limit?: number;
 }
 
 export interface IndicatorConfig {
@@ -527,6 +531,11 @@ export interface IndicatorConfig {
   price_ranking_duration?: string;  // "1h", "4h", "24h" or "1h,4h,24h"
   price_ranking_limit?: number;
   price_ranking_filter_hyperliquid?: boolean;
+
+  // Stock news data (Finnhub)
+  enable_stock_news?: boolean;
+  stock_news_limit?: number;   // articles per stock (default 3)
+  stock_news_days?: number;    // lookback days (default 3)
 }
 
 export interface KlineConfig {

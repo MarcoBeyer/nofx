@@ -18,7 +18,7 @@ type Config struct {
 	APIServerPort       int
 	JWTSecret           string
 	RegistrationEnabled bool
-	MaxUsers            int // Maximum number of users allowed (0 = unlimited, default = 10)
+	MaxUsers            int      // Maximum number of users allowed (0 = unlimited, default = 10)
 	AllowedEmails       []string // Whitelist of allowed emails (empty = allow all)
 
 	// Database configuration
@@ -45,6 +45,7 @@ type Config struct {
 	AlpacaAPIKey    string // Alpaca API key for US stocks
 	AlpacaSecretKey string // Alpaca secret key
 	TwelveDataKey   string // TwelveData API key for forex & metals
+	FinnhubAPIKey   string // Finnhub API key for stock screening & news
 }
 
 // Init initializes global configuration (from .env)
@@ -114,6 +115,7 @@ func Init() {
 	cfg.AlpacaAPIKey = os.Getenv("ALPACA_API_KEY")
 	cfg.AlpacaSecretKey = os.Getenv("ALPACA_SECRET_KEY")
 	cfg.TwelveDataKey = os.Getenv("TWELVEDATA_API_KEY")
+	cfg.FinnhubAPIKey = os.Getenv("FINNHUB_API_KEY")
 
 	// Database configuration
 	if v := os.Getenv("DB_TYPE"); v != "" {

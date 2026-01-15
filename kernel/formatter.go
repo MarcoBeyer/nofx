@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"encoding/json"
 	"fmt"
 	"nofx/market"
 	"nofx/provider/nofxos"
@@ -95,6 +96,17 @@ func formatContextData(ctx *Context, lang Language) string {
 			nofxosLang = nofxos.LangChinese
 		}
 		sb.WriteString(nofxos.FormatOIRankingForAI(ctx.OIRankingData, nofxosLang))
+	}
+
+	// 8. External Data
+	if len(ctx.ExternalData) > 0 {
+		sb.WriteString("\n## External Intelligence\n\n")
+		// Format as JSON
+		jsonData, err := json.MarshalIndent(ctx.ExternalData, "", "  ")
+		if err == nil {
+			sb.WriteString(string(jsonData))
+			sb.WriteString("\n\n")
+		}
 	}
 
 	return sb.String()
@@ -354,7 +366,6 @@ func formatKlineDataZH(symbol string, tfData map[string]*market.TimeframeSeriesD
 
 	return sb.String()
 }
-
 
 // getOIInterpretationZH 获取OI变化解读（中文）
 func getOIInterpretationZH(oiChange, priceChange string) string {
@@ -619,7 +630,6 @@ func formatKlineDataEN(symbol string, tfData map[string]*market.TimeframeSeriesD
 
 	return sb.String()
 }
-
 
 // getOIInterpretationEN 获取OI变化解读（英文）
 func getOIInterpretationEN(oiChange, priceChange string) string {

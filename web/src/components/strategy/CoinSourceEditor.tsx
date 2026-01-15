@@ -1,5 +1,5 @@
 import { useState, ChangeEvent } from 'react'
-import { Plus, X, Database, TrendingUp, List, Ban, Zap } from 'lucide-react'
+import { Plus, X, Database, TrendingUp, List, Ban, Zap, BarChart2 } from 'lucide-react'
 import type { CoinSourceConfig } from '../../types'
 
 interface CoinSourceEditorProps {
@@ -50,6 +50,15 @@ export function CoinSourceEditor({
       addExcludedCoin: { zh: '添加排除', en: 'Add Excluded' },
       nofxosNote: { zh: '使用 NofxOS API Key（在指标配置中设置）', en: 'Uses NofxOS API Key (set in Indicators config)' },
       filterHyperliquid: { zh: '仅选择 Hyperliquid 可交易币种', en: 'Filter by Hyperliquid Availability' },
+      stock_screener: { zh: '股票筛选器', en: 'Stock Screener' },
+      stock_screenerDesc: { zh: '使用 Finnhub 筛选热门美股', en: 'Use Finnhub to screen popular US stocks' },
+      useStockScreener: { zh: '启用股票筛选', en: 'Enable Stock Screener' },
+      stockScreenerType: { zh: '筛选类型', en: 'Screener Type' },
+      stockScreenerLimit: { zh: '数量', en: 'Limit' },
+      finnhubNote: { zh: '需要 Finnhub API Key (FINNHUB_API_KEY)', en: 'Requires Finnhub API Key (FINNHUB_API_KEY)' },
+      gainers: { zh: '涨幅榜', en: 'Top Gainers' },
+      losers: { zh: '跌幅榜', en: 'Top Losers' },
+      momentum: { zh: '动量榜', en: 'High Momentum' },
     }
     return translations[key]?.[language] || key
   }
@@ -59,6 +68,7 @@ export function CoinSourceEditor({
     { value: 'ai500', icon: Database, color: '#F0B90B' },
     { value: 'oi_top', icon: TrendingUp, color: '#0ECB81' },
     { value: 'mixed', icon: Database, color: '#60a5fa' },
+    { value: 'stock_screener', icon: BarChart2, color: '#22c55e' },
   ] as const
 
   // xyz dex assets (stocks, forex, commodities) - should NOT get USDT suffix
@@ -424,6 +434,88 @@ export function CoinSourceEditor({
               />
               <span className="text-sm text-nofx-text-muted">{t('filterHyperliquid')}</span>
             </label>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Screener Options */}
+      {config.source_type === 'stock_screener' && (
+        <div
+          className="p-4 rounded-lg bg-green-500/5 border border-green-500/20"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-green-500" />
+              <span className="text-sm font-medium text-nofx-text">
+                {t('stock_screener')} {t('dataSourceConfig')}
+              </span>
+              <span
+                className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-green-500/20 text-green-400 border border-green-500/30"
+              >
+                Finnhub
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.use_stock_screener}
+                onChange={(e) =>
+                  !disabled && onChange({ ...config, use_stock_screener: e.target.checked })
+                }
+                disabled={disabled}
+                className="w-5 h-5 rounded accent-green-500"
+              />
+              <span className="text-nofx-text">{t('useStockScreener')}</span>
+            </label>
+
+            {config.use_stock_screener && (
+              <>
+                <div className="flex items-center gap-3 pl-8">
+                  <span className="text-sm text-nofx-text-muted">
+                    {t('stockScreenerType')}:
+                  </span>
+                  <select
+                    value={config.stock_screener_type || 'gainers'}
+                    onChange={(e) =>
+                      !disabled &&
+                      onChange({ ...config, stock_screener_type: e.target.value as 'gainers' | 'losers' | 'momentum' })
+                    }
+                    disabled={disabled}
+                    className="px-3 py-1.5 rounded bg-nofx-bg border border-green-500/20 text-nofx-text"
+                  >
+                    <option value="gainers">{t('gainers')}</option>
+                    <option value="losers">{t('losers')}</option>
+                    <option value="momentum">{t('momentum')}</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3 pl-8">
+                  <span className="text-sm text-nofx-text-muted">
+                    {t('stockScreenerLimit')}:
+                  </span>
+                  <select
+                    value={config.stock_screener_limit || 10}
+                    onChange={(e) =>
+                      !disabled &&
+                      onChange({ ...config, stock_screener_limit: parseInt(e.target.value) || 10 })
+                    }
+                    disabled={disabled}
+                    className="px-3 py-1.5 rounded bg-nofx-bg border border-green-500/20 text-nofx-text"
+                  >
+                    {[5, 10, 15, 20, 30].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <p className="text-xs pl-8 text-nofx-text-muted">
+              {t('finnhubNote')}
+            </p>
           </div>
         </div>
       )}

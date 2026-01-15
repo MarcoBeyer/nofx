@@ -9,6 +9,7 @@ import (
 	"nofx/logger"
 	"nofx/market"
 	"nofx/mcp"
+	"nofx/provider/finnhub"
 	"nofx/provider/hyperliquid"
 	"nofx/provider/nofxos"
 	"nofx/security"
@@ -108,25 +109,26 @@ type RecentOrder struct {
 
 // Context trading context (complete information passed to AI)
 type Context struct {
-	CurrentTime     string                             `json:"current_time"`
-	RuntimeMinutes  int                                `json:"runtime_minutes"`
-	CallCount       int                                `json:"call_count"`
-	Account         AccountInfo                        `json:"account"`
-	Positions       []PositionInfo                     `json:"positions"`
-	CandidateCoins  []CandidateCoin                    `json:"candidate_coins"`
-	PromptVariant   string                             `json:"prompt_variant,omitempty"`
-	TradingStats    *TradingStats                      `json:"trading_stats,omitempty"`
-	RecentOrders    []RecentOrder                      `json:"recent_orders,omitempty"`
-	MarketDataMap   map[string]*market.Data            `json:"-"`
-	MultiTFMarket   map[string]map[string]*market.Data `json:"-"`
-	OITopDataMap    map[string]*OITopData              `json:"-"`
-	QuantDataMap    map[string]*QuantData              `json:"-"`
-	OIRankingData      *nofxos.OIRankingData      `json:"-"` // Market-wide OI ranking data
-	NetFlowRankingData *nofxos.NetFlowRankingData `json:"-"` // Market-wide fund flow ranking data
-	PriceRankingData   *nofxos.PriceRankingData   `json:"-"` // Market-wide price gainers/losers
-	BTCETHLeverage     int                          `json:"-"`
-	AltcoinLeverage int                                `json:"-"`
-	Timeframes      []string                           `json:"-"`
+	CurrentTime        string                             `json:"current_time"`
+	RuntimeMinutes     int                                `json:"runtime_minutes"`
+	CallCount          int                                `json:"call_count"`
+	Account            AccountInfo                        `json:"account"`
+	Positions          []PositionInfo                     `json:"positions"`
+	CandidateCoins     []CandidateCoin                    `json:"candidate_coins"`
+	PromptVariant      string                             `json:"prompt_variant,omitempty"`
+	TradingStats       *TradingStats                      `json:"trading_stats,omitempty"`
+	RecentOrders       []RecentOrder                      `json:"recent_orders,omitempty"`
+	ExternalData       map[string]interface{}             `json:"external_data,omitempty"`
+	MarketDataMap      map[string]*market.Data            `json:"-"`
+	MultiTFMarket      map[string]map[string]*market.Data `json:"-"`
+	OITopDataMap       map[string]*OITopData              `json:"-"`
+	QuantDataMap       map[string]*QuantData              `json:"-"`
+	OIRankingData      *nofxos.OIRankingData              `json:"-"` // Market-wide OI ranking data
+	NetFlowRankingData *nofxos.NetFlowRankingData         `json:"-"` // Market-wide fund flow ranking data
+	PriceRankingData   *nofxos.PriceRankingData           `json:"-"` // Market-wide price gainers/losers
+	BTCETHLeverage     int                                `json:"-"`
+	AltcoinLeverage    int                                `json:"-"`
+	Timeframes         []string                           `json:"-"`
 }
 
 // Decision AI trading decision
@@ -277,6 +279,26 @@ func GetFullDecisionWithStrategy(ctx *Context, mcpClient mcp.AIClient, engine *S
 					PriceDeltaPercent: pos.PriceDeltaPercent,
 				}
 			}
+		}
+	}
+
+	// 1.1 Fetch External Data (if configured)
+	if ctx.ExternalData == nil {
+		extData, err := engine.FetchExternalData()
+		if err != nil {
+			logger.Warnf("⚠️ Failed to fetch external data: %v", err)
+		} else {
+			ctx.ExternalData = extData
+		}
+	}
+
+	// 1.1 Fetch External Data (if configured)
+	if ctx.ExternalData == nil {
+		extData, err := engine.FetchExternalData()
+		if err != nil {
+			logger.Warnf("⚠️ Failed to fetch external data: %v", err)
+		} else {
+			ctx.ExternalData = extData
 		}
 	}
 
@@ -503,9 +525,103 @@ func (e *StrategyEngine) GetCandidateCoins() ([]CandidateCoin, error) {
 		}
 		return e.filterExcludedCoins(candidates), nil
 
+	case "custom_external":
+		// Fetch from external URL
+		coins, err := e.getCustomExternalCoins(coinSource.CustomPreselectionURL, coinSource.CustomPreselectionKey)
+		if err != nil {
+			return nil, err
+		}
+		return e.filterExcludedCoins(coins), nil
+
+	case "stock_screener":
+		// Fetch from Finnhub stock screener
+		if !coinSource.UseStockScreener {
+			logger.Infof("⚠️  source_type is 'stock_screener' but use_stock_screener is false, falling back to static coins")
+			for _, symbol := range coinSource.StaticCoins {
+				candidates = append(candidates, CandidateCoin{
+					Symbol:  symbol, // Stocks don't need USDT suffix
+					Sources: []string{"static"},
+				})
+			}
+			return e.filterExcludedCoins(candidates), nil
+		}
+		coins, err := e.getStockScreenerCoins(coinSource.StockScreenerLimit, coinSource.StockScreenerType)
+		if err != nil {
+			return nil, err
+		}
+		return e.filterExcludedCoins(coins), nil
+
 	default:
 		return nil, fmt.Errorf("unknown coin source type: %s", coinSource.SourceType)
 	}
+}
+
+// getCustomExternalCoins fetches candidate coins from external API
+func (e *StrategyEngine) getCustomExternalCoins(url, apiKey string) ([]CandidateCoin, error) {
+	if url == "" {
+		return nil, fmt.Errorf("custom_preselection_url is empty")
+	}
+
+	// Use SafeHTTPClient
+	client := security.SafeHTTPClient(30 * time.Second)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		req.Header.Set("X-API-Key", apiKey)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch custom coins: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("custom coin source returned status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Flexible parsing: Try []string or {"coins": []string}
+	var symbols []string
+
+	// Try direct array
+	if err := json.Unmarshal(body, &symbols); err != nil {
+		// Try object wrapper
+		var wrapper struct {
+			Coins   []string `json:"coins"`
+			Symbols []string `json:"symbols"`
+		}
+		if err2 := json.Unmarshal(body, &wrapper); err2 == nil {
+			if len(wrapper.Coins) > 0 {
+				symbols = wrapper.Coins
+			} else if len(wrapper.Symbols) > 0 {
+				symbols = wrapper.Symbols
+			}
+		} else {
+			return nil, fmt.Errorf("failed to parse custom coin response (expected []string or {coins: []string}): %w", err)
+		}
+	}
+
+	var candidates []CandidateCoin
+	for _, s := range symbols {
+		s = market.Normalize(s)
+		candidates = append(candidates, CandidateCoin{
+			Symbol:  s,
+			Sources: []string{"custom_external"},
+		})
+	}
+
+	logger.Infof("🔍 Fetched %d coins from custom external source", len(candidates))
+	return candidates, nil
 }
 
 // filterExcludedCoins removes excluded coins from the candidates list
@@ -588,7 +704,7 @@ func (e *StrategyEngine) getAI500Coins(limit int) ([]CandidateCoin, error) {
 			Sources: []string{"ai500"},
 		})
 	}
-	
+
 	return candidates, nil
 }
 
@@ -603,7 +719,7 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 	}
 
 	var candidates []CandidateCoin
-	
+
 	// Prepare filtering if needed
 	var hlSymbols map[string]bool
 	// Hyperliquid availability filter
@@ -628,7 +744,7 @@ func (e *StrategyEngine) getOITopCoins(limit int) ([]CandidateCoin, error) {
 		if count >= limit {
 			break
 		}
-		
+
 		symbol := market.Normalize(pos.Symbol)
 
 		// Apply Hyperliquid filter if enabled and symbols were successfully fetched
@@ -664,7 +780,9 @@ func (e *StrategyEngine) getHyperliquidSymbols() (map[string]bool, error) {
 		return nil, err
 	}
 	for s := range mids {
-		if strings.HasPrefix(s, "@") { continue } // Skip spot
+		if strings.HasPrefix(s, "@") {
+			continue
+		} // Skip spot
 		valid[s] = true
 	}
 
@@ -683,6 +801,100 @@ func (e *StrategyEngine) getHyperliquidSymbols() (map[string]bool, error) {
 	}
 
 	return valid, nil
+}
+
+// getStockScreenerCoins fetches candidate stocks from Finnhub screener
+func (e *StrategyEngine) getStockScreenerCoins(limit int, screenerType string) ([]CandidateCoin, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if screenerType == "" {
+		screenerType = "gainers"
+	}
+
+	client := finnhub.DefaultClient()
+
+	var stocks []finnhub.ScreenedStock
+	var err error
+
+	switch screenerType {
+	case "gainers":
+		stocks, err = client.GetTopGainers(limit)
+	case "losers":
+		stocks, err = client.GetTopLosers(limit)
+	case "momentum":
+		stocks, err = client.GetTopMomentum(limit)
+	default:
+		stocks, err = client.GetTopGainers(limit)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stocks from screener: %w", err)
+	}
+
+	var candidates []CandidateCoin
+	for _, stock := range stocks {
+		candidates = append(candidates, CandidateCoin{
+			Symbol:  stock.Symbol,
+			Sources: []string{"stock_screener"},
+		})
+	}
+
+	logger.Infof("📈 Screened %d stocks (type: %s)", len(candidates), screenerType)
+	return candidates, nil
+}
+
+// fetchAndFormatStockNews fetches and formats stock news from Finnhub for the AI prompt
+func (e *StrategyEngine) fetchAndFormatStockNews(candidates []CandidateCoin) string {
+	client := finnhub.DefaultClient()
+	if client.GetAPIKey() == "" {
+		return ""
+	}
+
+	// Get config limits
+	limit := e.config.Indicators.StockNewsLimit
+	if limit <= 0 {
+		limit = 3
+	}
+	days := e.config.Indicators.StockNewsDays
+	if days <= 0 {
+		days = 3
+	}
+
+	// Extract symbols from candidates (max 10 to avoid rate limits)
+	var symbols []string
+	for i, c := range candidates {
+		if i >= 10 {
+			break
+		}
+		symbols = append(symbols, c.Symbol)
+	}
+
+	if len(symbols) == 0 {
+		return ""
+	}
+
+	// Fetch news for all symbols
+	newsMap := client.GetNewsBatch(symbols, limit)
+	if len(newsMap) == 0 {
+		return ""
+	}
+
+	// Format news section
+	var sb strings.Builder
+	sb.WriteString("\n## 📰 Recent Stock News (Last ")
+	sb.WriteString(fmt.Sprintf("%d days)\n\n", days))
+
+	for symbol, articles := range newsMap {
+		if len(articles) == 0 {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("### %s\n", symbol))
+		sb.WriteString(finnhub.FormatNewsForPrompt(articles, limit))
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
 
 // ============================================================================
@@ -1374,6 +1586,14 @@ func (e *StrategyEngine) BuildUserPrompt(ctx *Context) string {
 	// Price Ranking data (market-wide gainers/losers)
 	if ctx.PriceRankingData != nil {
 		sb.WriteString(nofxos.FormatPriceRankingForAI(ctx.PriceRankingData, nofxosLang))
+	}
+
+	// Stock News (Finnhub) - for stock trading context
+	if e.config.Indicators.EnableStockNews && e.config.CoinSource.SourceType == "stock_screener" {
+		newsSection := e.fetchAndFormatStockNews(ctx.CandidateCoins)
+		if newsSection != "" {
+			sb.WriteString(newsSection)
+		}
 	}
 
 	sb.WriteString("---\n\n")
