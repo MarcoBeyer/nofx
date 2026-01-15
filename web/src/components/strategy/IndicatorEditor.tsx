@@ -114,6 +114,20 @@ export function IndicatorEditor({
       notConfigured: { zh: '未配置', en: 'Not Configured' },
       nofxosDataSources: { zh: 'NofxOS 数据源', en: 'NofxOS Data Sources' },
       filterHyperliquid: { zh: '仅选择 Hyperliquid 可交易币种', en: 'Filter by Hyperliquid Availability' },
+
+      // Stock Data Provider (Finnhub)
+      stockDataTitle: { zh: 'Finnhub 股票数据源', en: 'Finnhub Stock Data Provider' },
+      stockDataDesc: { zh: '股票市场数据服务', en: 'Stock market data service' },
+      stockDataFeatures: { zh: '股票新闻 · 市场动态', en: 'Stock News · Market Movers' },
+      stockDataSources: { zh: 'Finnhub 数据源', en: 'Finnhub Data Sources' },
+      stockNews: { zh: '股票新闻', en: 'Stock News' },
+      stockNewsDesc: { zh: '公司及市场新闻', en: 'Company & market news' },
+      stockNewsNote: { zh: '获取相关股票的最新新闻，帮助AI理解市场情绪', en: 'Fetch latest news for selected stocks, helps AI understand market sentiment' },
+      stockNewsLimit: { zh: '每股新闻数', en: 'News per stock' },
+      stockNewsDays: { zh: '回溯天数', en: 'Lookback days' },
+      stockScreenerData: { zh: '股票筛选数据', en: 'Stock Screener Data' },
+      stockScreenerDesc: { zh: '涨跌幅、动量排行', en: 'Gainers, losers, momentum' },
+      stockDataEnvNote: { zh: '需设置 FINNHUB_API_KEY 环境变量', en: 'Requires FINNHUB_API_KEY environment variable' },
     }
     return translations[key]?.[language] || key
   }
@@ -554,6 +568,141 @@ export function IndicatorEditor({
                 </span>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================ */}
+      {/* Finnhub Stock Data Provider                 */}
+      {/* ============================================ */}
+      <div
+        className="rounded-lg overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 50%, rgba(6, 182, 212, 0.08) 100%)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+        }}
+      >
+        {/* Decorative gradient line at top */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[2px]"
+          style={{ background: 'linear-gradient(90deg, #22c55e, #10b981, #06b6d4)' }}
+        />
+
+        <div className="p-4">
+          {/* Header Row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #22c55e, #10b981)' }}
+              >
+                <TrendingUp className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                  {t('stockDataTitle')}
+                </h3>
+                <span className="text-[10px]" style={{ color: '#848E9C' }}>
+                  {t('stockDataFeatures')}
+                </span>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center gap-2">
+              {config.enable_stock_news ? (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full" style={{ background: 'rgba(14, 203, 129, 0.15)', color: '#0ECB81' }}>
+                  <Check className="w-3 h-3" />
+                  {t('connected')}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full" style={{ background: 'rgba(132, 142, 156, 0.15)', color: '#848E9C' }}>
+                  {language === 'zh' ? '未启用' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Environment Variable Note */}
+          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+            <Info className="w-4 h-4 flex-shrink-0" style={{ color: '#22c55e' }} />
+            <span className="text-[10px]" style={{ color: '#22c55e' }}>
+              {t('stockDataEnvNote')}
+            </span>
+          </div>
+
+          {/* Stock Data Sources Grid */}
+          <div>
+            <div className="text-[10px] font-medium mb-2" style={{ color: '#848E9C' }}>
+              {t('stockDataSources')}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {/* Stock News */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_news ? 'rgba(34, 197, 94, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_news ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({
+                  ...config,
+                  enable_stock_news: !config.enable_stock_news,
+                  ...(!config.enable_stock_news && !config.stock_news_limit ? { stock_news_limit: 3 } : {}),
+                  ...(!config.enable_stock_news && !config.stock_news_days ? { stock_news_days: 3 } : {}),
+                })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{t('stockNews')}</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enable_stock_news || false}
+                    onChange={(e) => {
+                      e.stopPropagation(); !disabled && onChange({
+                        ...config,
+                        enable_stock_news: e.target.checked,
+                        ...(e.target.checked && !config.stock_news_limit ? { stock_news_limit: 3 } : {}),
+                        ...(e.target.checked && !config.stock_news_days ? { stock_news_days: 3 } : {}),
+                      })
+                    }}
+                    disabled={disabled}
+                    className="w-3.5 h-3.5 rounded accent-green-500"
+                  />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{t('stockNewsDesc')}</p>
+                {config.enable_stock_news && (
+                  <div className="flex gap-3 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px]" style={{ color: '#848E9C' }}>{t('stockNewsLimit')}:</span>
+                      <select
+                        value={config.stock_news_limit || 3}
+                        onChange={(e) => !disabled && onChange({ ...config, stock_news_limit: parseInt(e.target.value) })}
+                        disabled={disabled}
+                        className="px-2 py-1 rounded text-[10px]"
+                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      >
+                        {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px]" style={{ color: '#848E9C' }}>{t('stockNewsDays')}:</span>
+                      <select
+                        value={config.stock_news_days || 3}
+                        onChange={(e) => !disabled && onChange({ ...config, stock_news_days: parseInt(e.target.value) })}
+                        disabled={disabled}
+                        className="px-2 py-1 rounded text-[10px]"
+                        style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      >
+                        {[1, 3, 7, 14, 30].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
