@@ -169,7 +169,7 @@ func (t *AlpacaTrader) OpenLong(symbol string, quantity float64, leverage int) (
 		Qty:         &qtyDec,
 		Side:        alpaca.Buy,
 		Type:        alpaca.Market, // Using Market orders for simplicity
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day,    // Fractional shares require DAY orders
 	}
 
 	logger.Infof("[Alpaca] Opening Long %s Qty: %.4f", symbol, quantity)
@@ -194,7 +194,7 @@ func (t *AlpacaTrader) OpenShort(symbol string, quantity float64, leverage int) 
 		Qty:         &qtyDec,
 		Side:        alpaca.Sell,
 		Type:        alpaca.Market,
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 	}
 
 	logger.Infof("[Alpaca] Opening Short %s Qty: %.4f", symbol, quantity)
