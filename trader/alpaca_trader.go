@@ -236,7 +236,7 @@ func (t *AlpacaTrader) CloseLong(symbol string, quantity float64) (map[string]in
 			Qty:         &qtyDec,
 			Side:        alpaca.Sell,
 			Type:        alpaca.Market, // Using Market orders for simplicity
-			TimeInForce: alpaca.GTC,
+			TimeInForce: alpaca.Day,    // Fractional shares require DAY orders
 		}
 
 		order, err := t.client.PlaceOrder(req)
@@ -253,7 +253,7 @@ func (t *AlpacaTrader) CloseLong(symbol string, quantity float64) (map[string]in
 		Qty:         &qtyDec,
 		Side:        alpaca.Sell, // Sell to close Long
 		Type:        alpaca.Market,
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 	}
 
 	logger.Infof("[Alpaca] Closing Long %s Qty: %.4f", symbol, quantity)
@@ -290,7 +290,7 @@ func (t *AlpacaTrader) CloseShort(symbol string, quantity float64) (map[string]i
 			Qty:         &qtyDec,
 			Side:        alpaca.Buy, // Buy to close Short
 			Type:        alpaca.Market,
-			TimeInForce: alpaca.GTC,
+			TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 		}
 
 		order, err := t.client.PlaceOrder(req)
@@ -306,7 +306,7 @@ func (t *AlpacaTrader) CloseShort(symbol string, quantity float64) (map[string]i
 		Qty:         &qtyDec,
 		Side:        alpaca.Buy, // Buy to close Short
 		Type:        alpaca.Market,
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 	}
 
 	logger.Infof("[Alpaca] Closing Short %s Qty: %.4f", symbol, quantity)
@@ -359,7 +359,7 @@ func (t *AlpacaTrader) SetStopLoss(symbol string, positionSide string, quantity,
 		Side:        side,
 		Type:        alpaca.Stop,
 		StopPrice:   &stopDec,
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 	}
 
 	_, err := t.client.PlaceOrder(req)
@@ -385,7 +385,7 @@ func (t *AlpacaTrader) SetTakeProfit(symbol string, positionSide string, quantit
 		Side:        side,
 		Type:        alpaca.Limit,
 		LimitPrice:  &limitDec,
-		TimeInForce: alpaca.GTC,
+		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
 	}
 
 	_, err := t.client.PlaceOrder(req)
