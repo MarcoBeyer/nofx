@@ -63,6 +63,16 @@ func NewAlpacaTrader(apiKey, secretKey, feedURL string) *AlpacaTrader {
 	return trader
 }
 
+// IsMarketOpen checks if the US stock market is currently open
+func (t *AlpacaTrader) IsMarketOpen() bool {
+	clock, err := t.client.GetClock()
+	if err != nil {
+		logger.Infof("⚠️ [Alpaca] Failed to get market clock: %v", err)
+		return false // Assume closed on error to save tokens
+	}
+	return clock.IsOpen
+}
+
 // GetBalance retrieves account balance
 func (t *AlpacaTrader) GetBalance() (map[string]interface{}, error) {
 	// Check cache
