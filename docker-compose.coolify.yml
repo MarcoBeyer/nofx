@@ -17,19 +17,13 @@ services:
       - RSA_PRIVATE_KEY=${RSA_PRIVATE_KEY} # RSA Private Key for decrypting sensitive data
       - ALLOWED_EMAILS=${ALLOWED_EMAILS} # Optional: Restrict signup to specific emails
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://127.0.0.1:8080/api/health",
-        ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    networks:
+      - coolify
 
   # Frontend service (static serving and proxy)
   nofx-frontend:
@@ -42,15 +36,7 @@ services:
       nofx:
         condition: service_healthy
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://127.0.0.1/health",
-        ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
