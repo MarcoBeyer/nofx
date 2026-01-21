@@ -30,9 +30,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    networks:
-      - coolify
-      - default
 
   # Frontend service (static serving and proxy)
   nofx-frontend:
@@ -41,6 +38,9 @@ services:
       dockerfile: ./docker/Dockerfile.frontend
     container_name: nofx-frontend
     restart: unless-stopped
+    depends_on:
+      nofx:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -57,7 +57,6 @@ services:
       start_period: 5s
     networks:
       - coolify
-      - default
 
 networks:
   coolify:
