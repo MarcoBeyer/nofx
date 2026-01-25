@@ -196,18 +196,24 @@ func (t *AlpacaTrader) OpenLong(symbol string, quantity float64, leverage int) (
 }
 
 // OpenShort opens a short position (Sell)
+// Note: Alpaca does NOT allow fractional shares for short selling, so we round down to whole shares
 func (t *AlpacaTrader) OpenShort(symbol string, quantity float64, leverage int) (map[string]interface{}, error) {
-	qtyDec := decimal.NewFromFloat(quantity)
+	// Alpaca doesn't allow fractional shares for short selling - round down to whole number
+	wholeQty := math.Floor(quantity)
+	if wholeQty < 1 {
+		return nil, fmt.Errorf("Alpaca OpenShort failed: quantity %.4f rounds to less than 1 share (fractional shorts not allowed)", quantity)
+	}
+	qtyDec := decimal.NewFromFloat(wholeQty)
 
 	req := alpaca.PlaceOrderRequest{
 		Symbol:      symbol,
 		Qty:         &qtyDec,
 		Side:        alpaca.Sell,
 		Type:        alpaca.Market,
-		TimeInForce: alpaca.Day, // Fractional shares require DAY orders
+		TimeInForce: alpaca.GTC, // Use GTC for non-fractional orders
 	}
 
-	logger.Infof("[Alpaca] Opening Short %s Qty: %.4f", symbol, quantity)
+	logger.Infof("[Alpaca] Opening Short %s Qty: %.0f (original: %.4f, rounded for short)", symbol, wholeQty, quantity)
 
 	order, err := t.client.PlaceOrder(req)
 	if err != nil {
