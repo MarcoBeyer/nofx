@@ -1183,6 +1183,17 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 		} else {
 			createErr = fmt.Errorf("Lighter requires wallet address and API Key private key")
 		}
+	case "alpaca":
+		// Use Testnet field to determine Paper vs Live trading
+		alpacaFeedURL := "https://api.alpaca.markets" // Live
+		if exchangeCfg.Testnet {
+			alpacaFeedURL = "https://paper-api.alpaca.markets" // Paper trading
+		}
+		tempTrader = trader.NewAlpacaTrader(
+			string(exchangeCfg.APIKey),
+			string(exchangeCfg.SecretKey),
+			alpacaFeedURL,
+		)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported exchange type"})
 		return
@@ -1335,6 +1346,17 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 		} else {
 			createErr = fmt.Errorf("Lighter requires wallet address and API Key private key")
 		}
+	case "alpaca":
+		// Use Testnet field to determine Paper vs Live trading
+		alpacaFeedURL := "https://api.alpaca.markets" // Live
+		if exchangeCfg.Testnet {
+			alpacaFeedURL = "https://paper-api.alpaca.markets" // Paper trading
+		}
+		tempTrader = trader.NewAlpacaTrader(
+			string(exchangeCfg.APIKey),
+			string(exchangeCfg.SecretKey),
+			alpacaFeedURL,
+		)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported exchange type"})
 		return
@@ -1405,7 +1427,7 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 func (s *Server) recordClosePositionOrder(traderID, exchangeID, exchangeType, symbol, side string, quantity, exitPrice float64, result map[string]interface{}) {
 	// Skip for exchanges with OrderSync - let the background sync handle it to avoid duplicates
 	switch exchangeType {
-	case "binance", "lighter", "hyperliquid", "bybit", "okx", "bitget", "aster":
+	case "binance", "lighter", "hyperliquid", "bybit", "okx", "bitget", "aster", "alpaca":
 		logger.Infof("  📝 Close order will be synced by OrderSync, skipping immediate record")
 		return
 	}
