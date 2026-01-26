@@ -228,7 +228,12 @@ func (t *AlpacaTrader) OpenShort(symbol string, quantity float64, leverage int) 
 
 // CloseLong closes a long position (Sell)
 func (t *AlpacaTrader) CloseLong(symbol string, quantity float64) (map[string]interface{}, error) {
-	// If quantity is 0 or very close to full position, allow ClosePosition API
+	// Cancel all open orders for this symbol first to free up reserved shares
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("[Alpaca] Warning: failed to cancel open orders for %s: %v", symbol, err)
+		// Continue anyway, the close might still work
+	}
+
 	// If quantity is 0 or very close to full position, close full position
 	if quantity <= 0 {
 		logger.Infof("[Alpaca] Closing all Long position for %s", symbol)
@@ -240,7 +245,6 @@ func (t *AlpacaTrader) CloseLong(symbol string, quantity float64) (map[string]in
 		qtyStr := pos.Qty.String()
 		qtyDec, _ := decimal.NewFromString(qtyStr)
 
-		// If short, we need to buy to close, but CloseLong assumes we have a long position?
 		// Verification: GetPosition returns the net position. We should check if it's actually Long.
 		if pos.Side != "long" {
 			// Not a long position, nothing to close or it's short
@@ -286,6 +290,12 @@ func (t *AlpacaTrader) CloseLong(symbol string, quantity float64) (map[string]in
 
 // CloseShort closes a short position (Buy)
 func (t *AlpacaTrader) CloseShort(symbol string, quantity float64) (map[string]interface{}, error) {
+	// Cancel all open orders for this symbol first to free up reserved shares
+	if err := t.CancelAllOrders(symbol); err != nil {
+		logger.Infof("[Alpaca] Warning: failed to cancel open orders for %s: %v", symbol, err)
+		// Continue anyway, the close might still work
+	}
+
 	if quantity <= 0 {
 		logger.Infof("[Alpaca] Closing all Short position for %s", symbol)
 		pos, err := t.client.GetPosition(symbol)
