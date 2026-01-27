@@ -1368,6 +1368,13 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 		return
 	}
 
+	// For Alpaca, strip the xyz: prefix (Hyperliquid-specific format) from symbol
+	// Alpaca expects plain stock symbols like "MU", "TSLA", not "xyz:MU"
+	if exchangeCfg.ExchangeType == "alpaca" && strings.HasPrefix(req.Symbol, "xyz:") {
+		req.Symbol = strings.TrimPrefix(req.Symbol, "xyz:")
+		logger.Infof("🔵 [Alpaca] Stripped xyz: prefix, using symbol: %s", req.Symbol)
+	}
+
 	// Get current position info BEFORE closing (to get quantity and price)
 	positions, err := tempTrader.GetPositions()
 	if err != nil {
