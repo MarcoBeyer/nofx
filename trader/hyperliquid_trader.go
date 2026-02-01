@@ -131,6 +131,7 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool)
 		"",         // vault address (empty for personal account)
 		walletAddr, // wallet address
 		nil,        // SpotMeta will be fetched automatically
+		nil,        // perpDexs will be fetched automatically
 	)
 
 	logger.Infof("✓ Hyperliquid trader initialized successfully (testnet=%v, wallet=%s)", testnet, walletAddr)
@@ -664,8 +665,8 @@ func (t *HyperliquidTrader) SetLeverage(symbol string, leverage int) error {
 
 // refreshMetaIfNeeded refreshes meta information when invalid (triggered when Asset ID is 0)
 func (t *HyperliquidTrader) refreshMetaIfNeeded(coin string) error {
-	assetID := t.exchange.Info().NameToAsset(coin)
-	if assetID != 0 {
+	assetID, found := t.exchange.Info().CoinToAsset(coin)
+	if found && assetID != 0 {
 		return nil // Meta is normal, no refresh needed
 	}
 
@@ -685,8 +686,8 @@ func (t *HyperliquidTrader) refreshMetaIfNeeded(coin string) error {
 	logger.Infof("✅ Meta information refreshed, contains %d assets", len(meta.Universe))
 
 	// Verify Asset ID after refresh
-	assetID = t.exchange.Info().NameToAsset(coin)
-	if assetID == 0 {
+	assetID, found = t.exchange.Info().CoinToAsset(coin)
+	if !found || assetID == 0 {
 		return fmt.Errorf("❌ Even after refreshing Meta, Asset ID for %s is still 0. Possible reasons:\n"+
 			"  1. This coin is not listed on Hyperliquid\n"+
 			"  2. Coin name is incorrect (should be BTC not BTCUSDT)\n"+
@@ -1465,6 +1466,8 @@ func (t *HyperliquidTrader) placeXyzOrder(coin string, isBuy bool, size float64,
 	}
 
 	logger.Infof("📤 Sending xyz dex order to %s/exchange", apiURL)
+	logger.Infof("📋 DEBUG: OrderWire.Asset = %d (type: %T)", orderWire.Asset, orderWire.Asset)
+	logger.Infof("📋 DEBUG: JSON payload: %s", string(jsonData))
 
 	req, err := http.NewRequestWithContext(t.ctx, http.MethodPost, apiURL+"/exchange", bytes.NewBuffer(jsonData))
 	if err != nil {
