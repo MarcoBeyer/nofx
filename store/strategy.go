@@ -97,7 +97,7 @@ type PromptSectionsConfig struct {
 
 // CoinSourceConfig coin source configuration
 type CoinSourceConfig struct {
-	// source type: "static" | "ai500" | "oi_top" | "mixed" | "custom_external" | "stock_screener"
+	// source type: "static" | "ai500" | "oi_top" | "oi_low" | "mixed" | "custom_external" | "stock_screener"
 	SourceType string `json:"source_type"`
 	// static coin list (used when source_type = "static")
 	StaticCoins []string `json:"static_coins,omitempty"`
@@ -107,7 +107,7 @@ type CoinSourceConfig struct {
 	UseAI500 bool `json:"use_ai500"`
 	// AI500 coin pool maximum count
 	AI500Limit int `json:"ai500_limit,omitempty"`
-	// whether to use OI Top
+	// whether to use OI Top (持仓增加榜，适合做多)
 	UseOITop bool `json:"use_oi_top"`
 	// OI Top maximum count
 	OITopLimit int `json:"oi_top_limit,omitempty"`
@@ -117,6 +117,10 @@ type CoinSourceConfig struct {
 	CustomPreselectionURL string `json:"custom_preselection_url,omitempty"`
 	// custom preselection API Key
 	CustomPreselectionKey string `json:"custom_preselection_key,omitempty"`
+	// whether to use OI Low (持仓减少榜，适合做空)
+	UseOILow bool `json:"use_oi_low"`
+	// OI Low maximum count
+	OILowLimit int `json:"oi_low_limit,omitempty"`
 	// Note: API URLs are now built automatically using NofxOSAPIKey from IndicatorConfig
 
 	// Stock screener configuration (source_type = "stock_screener")
@@ -277,7 +281,9 @@ func GetDefaultStrategyConfig(lang string) StrategyConfig {
 			UseAI500:   true,
 			AI500Limit: 10,
 			UseOITop:   false,
-			OITopLimit: 20,
+			OITopLimit: 10,
+			UseOILow:   false,
+			OILowLimit: 10,
 		},
 		Indicators: IndicatorConfig{
 			Klines: KlineConfig{

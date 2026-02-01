@@ -6,9 +6,11 @@ require (
 	github.com/adshao/go-binance/v2 v2.8.9
 	github.com/agiledragon/gomonkey/v2 v2.13.0
 	github.com/alpacahq/alpaca-trade-api-go/v3 v3.9.0
+	github.com/antihax/optional v1.0.0
 	github.com/bybit-exchange/bybit.go.api v0.0.0-20250727214011-c9347d6804d6
 	github.com/elliottech/lighter-go v0.0.0-20251104171447-78b9b55ebc48
 	github.com/ethereum/go-ethereum v1.16.8
+	github.com/gateio/gateapi-go/v6 v6.104.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/uuid v1.6.0
