@@ -712,135 +712,137 @@ export function ExchangeConfigModal({
                             <div className="text-xs" style={{ color: '#848E9C' }}>{t('hyperliquidAgentWalletDesc', language)}</div>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('hyperliquidAgentPrivateKey', language)}</label>
-                          <div className="flex gap-2">
-                            <input type="text" value={maskSecret(apiKey)} readOnly placeholder={t('enterHyperliquidAgentPrivateKey', language)} className="flex-1 px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} />
-                            <button type="button" onClick={() => setSecureInputTarget('hyperliquid')} className="px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-105" style={{ background: '#7FE7CC', color: '#000' }}>
-                              {apiKey ? t('secureInputReenter', language) : t('secureInputButton', language)}
-                            </button>
-                          </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('hyperliquidAgentPrivateKey', language)}</label>
+                        <div className="flex gap-2">
+                          <input type="text" value={maskSecret(apiKey)} readOnly placeholder={t('enterHyperliquidAgentPrivateKey', language)} className="flex-1 px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} />
+                          <button type="button" onClick={() => setSecureInputTarget('hyperliquid')} className="px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-105" style={{ background: '#7FE7CC', color: '#000' }}>
+                            {apiKey ? t('secureInputReenter', language) : t('secureInputButton', language)}
+                          </button>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('hyperliquidMainWalletAddress', language)}</label>
-                          <input type="text" value={hyperliquidWalletAddr} onChange={(e) => setHyperliquidWalletAddr(e.target.value)} placeholder={t('enterHyperliquidMainWalletAddress', language)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
-                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('hyperliquidMainWalletAddress', language)}</label>
+                        <input type="text" value={hyperliquidWalletAddr} onChange={(e) => setHyperliquidWalletAddr(e.target.value)} placeholder={t('enterHyperliquidMainWalletAddress', language)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
+                      </div>
 
-                        {/* Testnet Checkbox */}
-                        <div className="flex items-center gap-2 mt-4">
-                          <input
-                            type="checkbox"
-                            id="hyperliquid-testnet"
-                            checked={testnet}
-                            onChange={(e) => setTestnet(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-600 text-yellow-500 focus:ring-yellow-500 bg-gray-700"
-                          />
-                          <label
-                            htmlFor="hyperliquid-testnet"
-                            className="text-sm font-medium cursor-pointer"
-                            style={{ color: '#EAECEF' }}
-                          >
-                            {t('useTestnet', language)}
-                          </label>
-                        </div>
-                      </>
-              )}
-
-                      {/* Lighter Fields */}
-                      {
-                        currentExchangeType === 'lighter' && (
-                          <>
-                            <div className="p-4 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                              <div className="flex items-start gap-2">
-                                <span style={{ fontSize: '16px' }}>🔐</span>
-                                <div>
-                                  <div className="text-sm font-semibold mb-1" style={{ color: '#3B82F6' }}>
-                                    {language === 'zh' ? 'Lighter API Key 配置' : 'Lighter API Key Setup'}
-                                  </div>
-                                  <div className="text-xs" style={{ color: '#848E9C' }}>
-                                    {language === 'zh' ? '请在 Lighter 网站生成 API Key' : 'Generate an API Key on Lighter website'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('lighterWalletAddress', language)} *</label>
-                              <input type="text" value={lighterWalletAddr} onChange={(e) => setLighterWalletAddr(e.target.value)} placeholder={t('enterLighterWalletAddress', language)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
-                                {t('lighterApiKeyPrivateKey', language)} *
-                                <button type="button" onClick={() => setSecureInputTarget('lighter')} className="text-xs underline" style={{ color: '#3B82F6' }}>{t('secureInputButton', language)}</button>
-                              </label>
-                              <input type="password" value={lighterApiKeyPrivateKey} onChange={(e) => setLighterApiKeyPrivateKey(e.target.value)} placeholder={t('enterLighterApiKeyPrivateKey', language)} className="w-full px-4 py-3 rounded-xl font-mono" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
-                                {language === 'zh' ? 'API Key 索引' : 'API Key Index'}
-                                <Tooltip content={language === 'zh' ? 'API Key 索引从0开始' : 'API Key index starts from 0'}>
-                                  <HelpCircle className="w-4 h-4 cursor-help" style={{ color: '#3B82F6' }} />
-                                </Tooltip>
-                              </label>
-                              <input type="number" min={0} max={255} value={lighterApiKeyIndex} onChange={(e) => setLighterApiKeyIndex(parseInt(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} />
-                            </div>
-                          </>
-                        )
-                      }
-
-                      {/* Buttons */}
-                      <div className="flex gap-3 pt-4">
-                        <button type="button" onClick={handleBack} className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5" style={{ background: '#2B3139', color: '#848E9C' }}>
-                          {editingExchangeId ? t('cancel', language) : (language === 'zh' ? '返回' : 'Back')}
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isSaving || !accountName.trim()}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ background: '#F0B90B', color: '#000' }}
+                      {/* Testnet Checkbox */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <input
+                          type="checkbox"
+                          id="hyperliquid-testnet"
+                          checked={testnet}
+                          onChange={(e) => setTestnet(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-600 text-yellow-500 focus:ring-yellow-500 bg-gray-700"
+                        />
+                        <label
+                          htmlFor="hyperliquid-testnet"
+                          className="text-sm font-medium cursor-pointer"
+                          style={{ color: '#EAECEF' }}
                         >
-                          {isSaving ? (t('saving', language) || '保存中...') : (
-                            <>{t('saveConfig', language)} <ArrowRight className="w-4 h-4" /></>
-                          )}
-                        </button>
+                          {t('useTestnet', language)}
+                        </label>
                       </div>
                     </>
                   )}
-                </form>
-              )}
-            </div>
-            </div>
 
-        {/* Binance Guide Modal */}
-        {
-          showGuide && (
-            <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4" onClick={() => setShowGuide(false)}>
-              <div className="rounded-2xl p-6 w-full max-w-4xl" style={{ background: '#1E2329' }} onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#EAECEF' }}>
-                    <BookOpen className="w-6 h-6" style={{ color: '#F0B90B' }} />
-                    {t('binanceSetupGuide', language)}
-                  </h3>
-                  <button onClick={() => setShowGuide(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: '#2B3139', color: '#848E9C' }}>
-                    {t('closeGuide', language)}
-                  </button>
-                </div>
-                <div className="overflow-y-auto max-h-[80vh]">
-                  <img src="/images/guide.png" alt={t('binanceSetupGuide', language)} className="w-full h-auto rounded-lg" />
+                  {/* Lighter Fields */}
+                  {
+                    currentExchangeType === 'lighter' && (
+                      <>
+                        <div className="p-4 rounded-xl" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                          <div className="flex items-start gap-2">
+                            <span style={{ fontSize: '16px' }}>🔐</span>
+                            <div>
+                              <div className="text-sm font-semibold mb-1" style={{ color: '#3B82F6' }}>
+                                {language === 'zh' ? 'Lighter API Key 配置' : 'Lighter API Key Setup'}
+                              </div>
+                              <div className="text-xs" style={{ color: '#848E9C' }}>
+                                {language === 'zh' ? '请在 Lighter 网站生成 API Key' : 'Generate an API Key on Lighter website'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{t('lighterWalletAddress', language)} *</label>
+                          <input type="text" value={lighterWalletAddr} onChange={(e) => setLighterWalletAddr(e.target.value)} placeholder={t('enterLighterWalletAddress', language)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                            {t('lighterApiKeyPrivateKey', language)} *
+                            <button type="button" onClick={() => setSecureInputTarget('lighter')} className="text-xs underline" style={{ color: '#3B82F6' }}>{t('secureInputButton', language)}</button>
+                          </label>
+                          <input type="password" value={lighterApiKeyPrivateKey} onChange={(e) => setLighterApiKeyPrivateKey(e.target.value)} placeholder={t('enterLighterApiKeyPrivateKey', language)} className="w-full px-4 py-3 rounded-xl font-mono" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} required />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                            {language === 'zh' ? 'API Key 索引' : 'API Key Index'}
+                            <Tooltip content={language === 'zh' ? 'API Key 索引从0开始' : 'API Key index starts from 0'}>
+                              <HelpCircle className="w-4 h-4 cursor-help" style={{ color: '#3B82F6' }} />
+                            </Tooltip>
+                          </label>
+                          <input type="number" min={0} max={255} value={lighterApiKeyIndex} onChange={(e) => setLighterApiKeyIndex(parseInt(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }} />
+                        </div>
+                      </>
+                    )
+                  }
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button type="button" onClick={handleBack} className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-white/5" style={{ background: '#2B3139', color: '#848E9C' }}>
+                      {editingExchangeId ? t('cancel', language) : (language === 'zh' ? '返回' : 'Back')}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving || !accountName.trim()}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: '#F0B90B', color: '#000' }}
+                    >
+                      {isSaving ? (t('saving', language) || '保存中...') : (
+                        <>{t('saveConfig', language)} <ArrowRight className="w-4 h-4" /></>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
+
+
+          {/* Binance Guide Modal */}
+          {
+            showGuide && (
+              <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4" onClick={() => setShowGuide(false)}>
+                <div className="rounded-2xl p-6 w-full max-w-4xl" style={{ background: '#1E2329' }} onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2" style={{ color: '#EAECEF' }}>
+                      <BookOpen className="w-6 h-6" style={{ color: '#F0B90B' }} />
+                      {t('binanceSetupGuide', language)}
+                    </h3>
+                    <button onClick={() => setShowGuide(false)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: '#2B3139', color: '#848E9C' }}>
+                      {t('closeGuide', language)}
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto max-h-[80vh]">
+                    <img src="/images/guide.png" alt={t('binanceSetupGuide', language)} className="w-full h-auto rounded-lg" />
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        }
+            )
+          }
 
-        {/* Secure Input Modal */}
-        <TwoStageKeyModal
-          isOpen={secureInputTarget !== null}
-          language={language}
-          contextLabel={secureInputContextLabel}
-          expectedLength={64}
-          onCancel={() => setSecureInputTarget(null)}
-          onComplete={handleSecureInputComplete}
-        />
+          {/* Secure Input Modal */}
+          <TwoStageKeyModal
+            isOpen={secureInputTarget !== null}
+            language={language}
+            contextLabel={secureInputContextLabel}
+            expectedLength={64}
+            onCancel={() => setSecureInputTarget(null)}
+            onComplete={handleSecureInputComplete}
+          />
+        </div>
       </div>
-      )
+    </div>
+  )
 }
