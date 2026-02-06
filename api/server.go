@@ -26,6 +26,7 @@ import (
 	"nofx/trader/bybit"
 	"nofx/trader/gate"
 	hyperliquidtrader "nofx/trader/hyperliquid"
+	"nofx/trader/kucoin"
 	"nofx/trader/lighter"
 	"nofx/trader/okx"
 	"strconv"
@@ -628,6 +629,12 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				string(exchangeCfg.APIKey),
 				string(exchangeCfg.SecretKey),
 			)
+		case "kucoin":
+			tempTrader = kucoin.NewKuCoinTrader(
+				string(exchangeCfg.APIKey),
+				string(exchangeCfg.SecretKey),
+				string(exchangeCfg.Passphrase),
+			)
 		case "lighter":
 			if exchangeCfg.LighterWalletAddr != "" && string(exchangeCfg.LighterAPIKeyPrivateKey) != "" {
 				// Lighter only supports mainnet
@@ -1191,6 +1198,12 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			string(exchangeCfg.APIKey),
 			string(exchangeCfg.SecretKey),
 		)
+	case "kucoin":
+		tempTrader = kucoin.NewKuCoinTrader(
+			string(exchangeCfg.APIKey),
+			string(exchangeCfg.SecretKey),
+			string(exchangeCfg.Passphrase),
+		)
 	case "lighter":
 		if exchangeCfg.LighterWalletAddr != "" && string(exchangeCfg.LighterAPIKeyPrivateKey) != "" {
 			// Lighter only supports mainnet
@@ -1358,6 +1371,12 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 		tempTrader = gate.NewGateTrader(
 			string(exchangeCfg.APIKey),
 			string(exchangeCfg.SecretKey),
+		)
+	case "kucoin":
+		tempTrader = kucoin.NewKuCoinTrader(
+			string(exchangeCfg.APIKey),
+			string(exchangeCfg.SecretKey),
+			string(exchangeCfg.Passphrase),
 		)
 	case "lighter":
 		if exchangeCfg.LighterWalletAddr != "" && string(exchangeCfg.LighterAPIKeyPrivateKey) != "" {
@@ -2013,7 +2032,7 @@ func (s *Server) handleCreateExchange(c *gin.Context) {
 	// Validate exchange type
 	validTypes := map[string]bool{
 		"binance": true, "bybit": true, "okx": true, "bitget": true,
-		"hyperliquid": true, "aster": true, "lighter": true, "alpaca": true, "gate": true,
+		"hyperliquid": true, "aster": true, "lighter": true, "alpaca": true, "gate": true, "kucoin": true,
 	}
 	if !validTypes[req.ExchangeType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid exchange type: %s", req.ExchangeType)})
@@ -2551,6 +2570,9 @@ func (s *Server) getKlinesFromCoinank(symbol, interval, exchange string, limit i
 		coinankExchange = coinank_enum.Aster
 	case "lighter":
 		// Lighter doesn't have direct CoinAnk support, use Binance data as fallback
+		coinankExchange = coinank_enum.Binance
+	case "kucoin":
+		// KuCoin doesn't have direct CoinAnk support, use Binance data as fallback
 		coinankExchange = coinank_enum.Binance
 	default:
 		// For any unknown exchange, default to Binance
@@ -3412,6 +3434,7 @@ func (s *Server) handleGetSupportedExchanges(c *gin.Context) {
 		{ExchangeType: "bybit", Name: "Bybit Futures", Type: "cex"},
 		{ExchangeType: "okx", Name: "OKX Futures", Type: "cex"},
 		{ExchangeType: "gate", Name: "Gate.io Futures", Type: "cex"},
+		{ExchangeType: "kucoin", Name: "KuCoin Futures", Type: "cex"},
 		{ExchangeType: "hyperliquid", Name: "Hyperliquid", Type: "dex"},
 		{ExchangeType: "aster", Name: "Aster DEX", Type: "dex"},
 		{ExchangeType: "lighter", Name: "LIGHTER DEX", Type: "dex"},
