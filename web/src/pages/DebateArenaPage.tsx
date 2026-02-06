@@ -326,6 +326,7 @@ function CreateModal({
   const [maxRounds, setMaxRounds] = useState(3)
   const [participants, setParticipants] = useState<{ ai_model_id: string; personality: DebatePersonality }[]>([])
   const [creating, setCreating] = useState(false)
+  const [isCustomSymbol, setIsCustomSymbol] = useState(false)
 
   // Get the selected strategy's coin source config
   const selectedStrategy = strategies.find(s => s.id === strategyId)
@@ -348,11 +349,14 @@ function CreateModal({
       setSymbol(firstSourceType === 'static' && firstStaticCoins.length > 0 ? firstStaticCoins[0] : '')
       setMaxRounds(3)
       setParticipants([])
+      setIsCustomSymbol(false)
     }
   }, [isOpen, strategies])
 
   // Update symbol when strategy changes
   useEffect(() => {
+    if (isCustomSymbol) return // Don't override if user is inputting custom symbol
+
     if (isStaticWithCoins) {
       if (!staticCoins.includes(symbol)) {
         setSymbol(staticCoins[0])
@@ -361,7 +365,7 @@ function CreateModal({
       // Non-static strategy: clear symbol, backend will auto-select
       setSymbol('')
     }
-  }, [strategyId, isStaticWithCoins, staticCoins, symbol])
+  }, [strategyId, isStaticWithCoins, staticCoins, symbol, isCustomSymbol])
 
   const addP = () => {
     if (participants.length >= 10 || aiModels.length === 0) return
@@ -406,21 +410,53 @@ function CreateModal({
             {strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
 
-          <div className="flex gap-2">
-            {/* Show dropdown only for static type with coins defined */}
-            {isStaticWithCoins ? (
-              <select value={symbol} onChange={e => setSymbol(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text text-sm outline-none focus:border-nofx-gold">
-                {staticCoins.map(coin => <option key={coin} value={coin}>{coin}</option>)}
-              </select>
-            ) : (
-              <div className="flex-1 px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text-muted text-sm">
-                {language === 'zh' ? '根据策略规则自动选择' : 'Auto-selected by strategy'}
+          <div className="flex gap-2 items-center">
+            {/* Custom Symbol Toggle and Input */}
+            <div className="flex-1 flex gap-2">
+              <div className="relative flex-1">
+                {isStaticWithCoins && !isCustomSymbol ? (
+                  <select value={symbol} onChange={e => setSymbol(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text text-sm outline-none focus:border-nofx-gold appearance-none">
+                    {staticCoins.map(coin => <option key={coin} value={coin}>{coin}</option>)}
+                  </select>
+                ) : !isCustomSymbol ? (
+                  <div className="w-full px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text-muted text-sm truncate">
+                    {language === 'zh' ? '根据策略规则自动选择' : 'Auto-selected by strategy'}
+                  </div>
+                ) : (
+                  <input
+                    value={symbol}
+                    onChange={e => setSymbol(e.target.value.toUpperCase())}
+                    placeholder="e.g. BTCUSDT"
+                    className="w-full px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text text-sm outline-none focus:border-nofx-gold"
+                    autoFocus
+                  />
+                )}
               </div>
-            )}
+
+              <button
+                onClick={() => {
+                  const newCustom = !isCustomSymbol
+                  setIsCustomSymbol(newCustom)
+                  if (!newCustom) {
+                    // Reset to default logic
+                    if (isStaticWithCoins) setSymbol(staticCoins[0])
+                    else setSymbol('')
+                  } else {
+                    // Keep current or clear if it was auto message
+                    if (!isStaticWithCoins && !symbol) setSymbol('')
+                  }
+                }}
+                className={`p-2 rounded-lg border ${isCustomSymbol ? 'bg-nofx-gold text-black border-nofx-gold' : 'bg-nofx-bg border-nofx-gold/20 text-nofx-text-muted hover:text-nofx-gold'} transition-colors`}
+                title="Toggle Custom Symbol"
+              >
+                {isCustomSymbol ? <X size={16} /> : <Zap size={16} />}
+              </button>
+            </div>
+
             <select value={maxRounds} onChange={e => setMaxRounds(+e.target.value)}
-              className="px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text text-sm outline-none focus:border-nofx-gold">
-              {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {language === 'zh' ? '轮' : 'rounds'}</option>)}
+              className="px-3 py-2 rounded-lg bg-nofx-bg border border-nofx-gold/20 text-nofx-text text-sm outline-none focus:border-nofx-gold w-24">
+              {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {language === 'zh' ? '轮' : 'rds'}</option>)}
             </select>
           </div>
 
