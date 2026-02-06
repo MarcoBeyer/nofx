@@ -664,6 +664,7 @@ export interface DebateSession {
   trader_id?: string;
   max_rounds: number;
   current_round: number;
+  last_error?: string;
   final_decision?: DebateDecision;
   final_decisions?: DebateDecision[];  // Multi-coin decisions
   auto_execute: boolean;

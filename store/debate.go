@@ -74,19 +74,20 @@ type DebateSession struct {
 	Name            string            `json:"name"`
 	StrategyID      string            `json:"strategy_id"`
 	Status          DebateStatus      `json:"status"`
-	Symbol          string            `json:"symbol"`           // Primary symbol (for backward compat, may be empty for multi-coin)
+	Symbol          string            `json:"symbol"` // Primary symbol (for backward compat, may be empty for multi-coin)
 	MaxRounds       int               `json:"max_rounds"`
 	CurrentRound    int               `json:"current_round"`
-	IntervalMinutes int               `json:"interval_minutes"` // Debate interval (5, 15, 30, 60 minutes)
-	PromptVariant   string            `json:"prompt_variant"`   // balanced/aggressive/conservative/scalping
+	IntervalMinutes int               `json:"interval_minutes"`          // Debate interval (5, 15, 30, 60 minutes)
+	PromptVariant   string            `json:"prompt_variant"`            // balanced/aggressive/conservative/scalping
 	FinalDecision   *DebateDecision   `json:"final_decision,omitempty"`  // Single decision (backward compat)
 	FinalDecisions  []*DebateDecision `json:"final_decisions,omitempty"` // Multi-coin decisions
 	AutoExecute     bool              `json:"auto_execute"`
 	TraderID        string            `json:"trader_id,omitempty"` // Trader to use for auto-execute
 	// OI Ranking data options
-	EnableOIRanking bool      `json:"enable_oi_ranking"` // Whether to include OI ranking data
-	OIRankingLimit  int       `json:"oi_ranking_limit"`  // Number of OI ranking entries (default 10)
-	OIDuration      string    `json:"oi_duration"`       // Duration for OI data (1h, 4h, 24h, etc.)
+	EnableOIRanking bool      `json:"enable_oi_ranking"`    // Whether to include OI ranking data
+	OIRankingLimit  int       `json:"oi_ranking_limit"`     // Number of OI ranking entries (default 10)
+	OIDuration      string    `json:"oi_duration"`          // Duration for OI data (1h, 4h, 24h, etc.)
+	LastError       string    `json:"last_error,omitempty"` // Last error message if any
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -109,6 +110,7 @@ type DebateSessionDB struct {
 	EnableOIRanking bool         `gorm:"column:enable_oi_ranking;default:false"`
 	OIRankingLimit  int          `gorm:"column:oi_ranking_limit;default:10"`
 	OIDuration      string       `gorm:"column:oi_duration;default:1h"`
+	LastError       string       `gorm:"column:last_error"`
 	CreatedAt       time.Time    `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time    `gorm:"column:updated_at;autoUpdateTime"`
 }
@@ -134,6 +136,7 @@ func (db *DebateSessionDB) toSession() *DebateSession {
 		EnableOIRanking: db.EnableOIRanking,
 		OIRankingLimit:  db.OIRankingLimit,
 		OIDuration:      db.OIDuration,
+		LastError:       db.LastError,
 		CreatedAt:       db.CreatedAt,
 		UpdatedAt:       db.UpdatedAt,
 	}
@@ -191,9 +194,9 @@ type DebateMessage struct {
 	Personality DebatePersonality `gorm:"column:personality;not null" json:"personality"`
 	MessageType string            `gorm:"column:message_type;not null" json:"message_type"` // analysis/rebuttal/final/vote
 	Content     string            `gorm:"column:content;not null" json:"content"`
-	DecisionRaw string            `gorm:"column:decision" json:"-"`                       // JSON string in DB
-	Decision    *DebateDecision   `gorm:"-" json:"decision,omitempty"`                    // Parsed for API
-	Decisions   []*DebateDecision `gorm:"-" json:"decisions,omitempty"`                   // Multi-coin decisions
+	DecisionRaw string            `gorm:"column:decision" json:"-"`     // JSON string in DB
+	Decision    *DebateDecision   `gorm:"-" json:"decision,omitempty"`  // Parsed for API
+	Decisions   []*DebateDecision `gorm:"-" json:"decisions,omitempty"` // Multi-coin decisions
 	Confidence  int               `gorm:"column:confidence;default:0" json:"confidence"`
 	CreatedAt   time.Time         `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 }
@@ -208,8 +211,8 @@ type DebateVote struct {
 	SessionID     string            `gorm:"column:session_id;not null;index" json:"session_id"`
 	AIModelID     string            `gorm:"column:ai_model_id;not null" json:"ai_model_id"`
 	AIModelName   string            `gorm:"column:ai_model_name;not null" json:"ai_model_name"`
-	Action        string            `gorm:"column:action;not null" json:"action"`   // Primary action (backward compat)
-	Symbol        string            `gorm:"column:symbol;not null" json:"symbol"`   // Primary symbol (backward compat)
+	Action        string            `gorm:"column:action;not null" json:"action"` // Primary action (backward compat)
+	Symbol        string            `gorm:"column:symbol;not null" json:"symbol"` // Primary symbol (backward compat)
 	Confidence    int               `gorm:"column:confidence;default:0" json:"confidence"`
 	Leverage      int               `gorm:"column:leverage;default:5" json:"leverage"`
 	PositionPct   float64           `gorm:"column:position_pct;default:0.2" json:"position_pct"`
@@ -325,6 +328,11 @@ func (s *DebateStore) ListAllSessions() ([]*DebateSession, error) {
 // UpdateSessionStatus updates the status of a debate session
 func (s *DebateStore) UpdateSessionStatus(id string, status DebateStatus) error {
 	return s.db.Model(&DebateSessionDB{}).Where("id = ?", id).Update("status", status).Error
+}
+
+// UpdateSessionError updates the last error of a debate session
+func (s *DebateStore) UpdateSessionError(id string, errStr string) error {
+	return s.db.Model(&DebateSessionDB{}).Where("id = ?", id).Update("last_error", errStr).Error
 }
 
 // UpdateSessionRound updates the current round of a debate session

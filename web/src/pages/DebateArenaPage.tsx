@@ -26,6 +26,8 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  Square,
+  Trash2,
 } from 'lucide-react'
 import { DeepVoidBackground } from '../components/DeepVoidBackground'
 
@@ -37,6 +39,7 @@ const T: Record<string, Record<string, string>> = {
   offline: { zh: '离线', en: 'Offline' },
   noTraders: { zh: '暂无交易员', en: 'No traders' },
   start: { zh: '开始', en: 'Start' },
+  stop: { zh: '停止', en: 'Stop' },
   delete: { zh: '删除', en: 'Delete' },
   discussionRecords: { zh: '讨论记录', en: 'Discussion' },
   finalVotes: { zh: '最终投票', en: 'Final Votes' },
@@ -537,6 +540,12 @@ export function DebateArenaPage() {
     mutateList(); mutateDetail()
   }
 
+  const onCancel = async (id: string) => {
+    await api.cancelDebate(id)
+    notify.success('已停止')
+    mutateList(); mutateDetail()
+  }
+
   const onDelete = async (id: string) => {
     await api.deleteDebate(id)
     notify.success('已删除')
@@ -594,12 +603,26 @@ export function DebateArenaPage() {
                 <span className="text-sm text-nofx-text truncate flex-1">{d.name}</span>
               </div>
               <div className="text-xs text-nofx-text-muted mt-1">{d.symbol} · R{d.current_round}/{d.max_rounds}</div>
-              {d.status === 'pending' && selectedId === d.id && (
-                <div className="flex gap-1 mt-1">
-                  <button onClick={e => { e.stopPropagation(); onStart(d.id) }}
-                    className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">{t('start', language)}</button>
-                  <button onClick={e => { e.stopPropagation(); onDelete(d.id) }}
-                    className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded">{t('delete', language)}</button>
+              {selectedId === d.id && (
+                <div className="flex gap-1 mt-1 flex-wrap">
+                  {d.status === 'pending' && (
+                    <button onClick={e => { e.stopPropagation(); onStart(d.id) }}
+                      className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded flex items-center gap-1 hover:bg-green-500/30">
+                      <Zap size={10} /> {t('start', language)}
+                    </button>
+                  )}
+                  {(d.status === 'running' || d.status === 'voting') && (
+                    <button onClick={e => { e.stopPropagation(); onCancel(d.id) }}
+                      className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded flex items-center gap-1 hover:bg-yellow-500/30">
+                      <Square size={10} /> {t('stop', language)}
+                    </button>
+                  )}
+                  {(d.status === 'pending' || d.status === 'completed' || d.status === 'cancelled') && (
+                    <button onClick={e => { e.stopPropagation(); onDelete(d.id) }}
+                      className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded flex items-center gap-1 hover:bg-red-500/30">
+                      <Trash2 size={10} /> {t('delete', language)}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -696,11 +719,22 @@ export function DebateArenaPage() {
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
                   <div className="text-6xl mb-4">{detail.status === 'pending' ? '🎯' : '⏳'}</div>
                   <div className="text-lg">{detail.status === 'pending' ? t('clickToStart', language) : t('waitingAI', language)}</div>
+                  {detail.last_error && (
+                    <div className="mt-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg max-w-md text-center">
+                      <div className="text-red-400 font-bold mb-1">⚠️ Error</div>
+                      <div className="text-xs text-red-300">{detail.last_error}</div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
                   {/* Left - Rounds */}
                   <div className="flex-1 overflow-y-auto p-4 border-r border-nofx-gold/20">
+                    {detail.last_error && (
+                      <div className="mb-4 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400 flex items-center gap-2">
+                        <span className="font-bold">Last Error:</span> {detail.last_error}
+                      </div>
+                    )}
                     <div className="text-sm text-nofx-text-muted font-semibold mb-3 flex items-center gap-2">
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                       {t('discussionRecords', language)}
