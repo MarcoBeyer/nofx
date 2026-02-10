@@ -1131,6 +1131,11 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *kernel.Decision, actio
 		return err
 	}
 
+	// [CODE ENFORCED] Market hours check
+	if err := at.enforceMarketHours(); err != nil {
+		return err
+	}
+
 	// Check if there's already a position in the same symbol and direction
 	for _, pos := range positions {
 		if pos["symbol"] == decision.Symbol && pos["side"] == "long" {
@@ -1259,6 +1264,11 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *kernel.Decision, acti
 
 	// [CODE ENFORCED] Daily trade limit check
 	if err := at.enforceDailyTradeLimit(); err != nil {
+		return err
+	}
+
+	// [CODE ENFORCED] Market hours check
+	if err := at.enforceMarketHours(); err != nil {
 		return err
 	}
 
@@ -2414,6 +2424,64 @@ func (at *AutoTrader) enforceDailyTradeLimit() error {
 	if at.dailyTradeCount >= maxDaily {
 		return fmt.Errorf("❌ [TRADE SAFEGUARD] Daily trade limit reached (%d/%d)", at.dailyTradeCount, maxDaily)
 	}
+	return nil
+}
+
+// enforceMarketHours checks if current time is within US stock market hours (CODE ENFORCED)
+func (at *AutoTrader) enforceMarketHours() error {
+	if at.config.StrategyConfig == nil {
+		return nil
+	}
+
+	if !at.config.StrategyConfig.RiskControl.MarketHoursOnly {
+		return nil // Feature disabled
+	}
+
+	// US Eastern timezone
+	etLoc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		logger.Errorf("[TRADE SAFEGUARD] Failed to load ET timezone: %v, skipping market hours check", err)
+		return nil
+	}
+
+	now := time.Now().In(etLoc)
+	weekday := now.Weekday()
+
+	// Weekend check
+	if weekday == time.Saturday || weekday == time.Sunday {
+		return fmt.Errorf("❌ [TRADE SAFEGUARD] Market closed: weekend (%s)", weekday)
+	}
+
+	// Market hours: 9:30 AM - 4:00 PM ET
+	marketOpenMinutes := 9*60 + 30 // 9:30 AM = 570 minutes
+	marketCloseMinutes := 16 * 60  // 4:00 PM = 960 minutes
+
+	// Apply buffers
+	openBuffer := at.config.StrategyConfig.RiskControl.MarketOpenBufferMinutes
+	if openBuffer < 0 {
+		openBuffer = 0
+	}
+	closeBuffer := at.config.StrategyConfig.RiskControl.MarketCloseBufferMinutes
+	if closeBuffer < 0 {
+		closeBuffer = 0
+	}
+
+	effectiveOpen := marketOpenMinutes + openBuffer
+	effectiveClose := marketCloseMinutes - closeBuffer
+
+	currentMinutes := now.Hour()*60 + now.Minute()
+
+	if currentMinutes < effectiveOpen {
+		waitMinutes := effectiveOpen - currentMinutes
+		return fmt.Errorf("❌ [TRADE SAFEGUARD] Market not yet in trading window: opens at %d:%02d ET (+%d min buffer), current %s ET, %d min to wait",
+			effectiveOpen/60, effectiveOpen%60, openBuffer, now.Format("15:04"), waitMinutes)
+	}
+
+	if currentMinutes >= effectiveClose {
+		return fmt.Errorf("❌ [TRADE SAFEGUARD] Market trading window closed: stopped at %d:%02d ET (-%d min buffer), current %s ET",
+			effectiveClose/60, effectiveClose%60, closeBuffer, now.Format("15:04"))
+	}
+
 	return nil
 }
 

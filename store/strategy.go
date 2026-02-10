@@ -262,6 +262,13 @@ type RiskControlConfig struct {
 	TradeCooldownMinutes int `json:"trade_cooldown_minutes"`
 	// Max number of new position opens per day (CODE ENFORCED, default: 6)
 	MaxDailyTrades int `json:"max_daily_trades"`
+
+	// Only allow trading during US stock market hours 9:30-16:00 ET (CODE ENFORCED, default: false)
+	MarketHoursOnly bool `json:"market_hours_only"`
+	// Minutes after market open to wait before allowing trades (CODE ENFORCED, default: 15)
+	MarketOpenBufferMinutes int `json:"market_open_buffer_minutes"`
+	// Minutes before market close to stop allowing new trades (CODE ENFORCED, default: 30)
+	MarketCloseBufferMinutes int `json:"market_close_buffer_minutes"`
 }
 
 // NewStrategyStore creates a new StrategyStore
@@ -340,19 +347,22 @@ func GetDefaultStrategyConfig(lang string) StrategyConfig {
 			PriceRankingLimit:    10,
 		},
 		RiskControl: RiskControlConfig{
-			MaxPositions:                 3,   // Max 3 coins simultaneously (CODE ENFORCED)
-			BTCETHMaxLeverage:            5,   // BTC/ETH exchange leverage (AI guided)
-			AltcoinMaxLeverage:           5,   // Altcoin exchange leverage (AI guided)
-			BTCETHMaxPositionValueRatio:  5.0, // BTC/ETH: max position = 5x equity (CODE ENFORCED)
-			AltcoinMaxPositionValueRatio: 1.0, // Altcoin: max position = 1x equity (CODE ENFORCED)
-			MaxMarginUsage:               0.9, // Max 90% margin usage (CODE ENFORCED)
-			MinPositionSize:              12,  // Min 12 USDT per position (CODE ENFORCED)
-			MinRiskRewardRatio:           3.0, // Min 3:1 profit/loss ratio (AI guided)
-			MinConfidence:                75,  // Min 75% confidence (AI guided)
-			MinStopLossDistancePct:       2.0, // Min 2% stop loss distance (CODE ENFORCED)
-			MinTakeProfitDistancePct:     1.0, // Min 1% take profit distance (CODE ENFORCED)
-			TradeCooldownMinutes:         10,  // 10 min cooldown after closing (CODE ENFORCED)
-			MaxDailyTrades:               6,   // Max 6 new positions per day (CODE ENFORCED)
+			MaxPositions:                 3,     // Max 3 coins simultaneously (CODE ENFORCED)
+			BTCETHMaxLeverage:            5,     // BTC/ETH exchange leverage (AI guided)
+			AltcoinMaxLeverage:           5,     // Altcoin exchange leverage (AI guided)
+			BTCETHMaxPositionValueRatio:  5.0,   // BTC/ETH: max position = 5x equity (CODE ENFORCED)
+			AltcoinMaxPositionValueRatio: 1.0,   // Altcoin: max position = 1x equity (CODE ENFORCED)
+			MaxMarginUsage:               0.9,   // Max 90% margin usage (CODE ENFORCED)
+			MinPositionSize:              12,    // Min 12 USDT per position (CODE ENFORCED)
+			MinRiskRewardRatio:           3.0,   // Min 3:1 profit/loss ratio (AI guided)
+			MinConfidence:                75,    // Min 75% confidence (AI guided)
+			MinStopLossDistancePct:       2.0,   // Min 2% stop loss distance (CODE ENFORCED)
+			MinTakeProfitDistancePct:     1.0,   // Min 1% take profit distance (CODE ENFORCED)
+			TradeCooldownMinutes:         10,    // 10 min cooldown after closing (CODE ENFORCED)
+			MaxDailyTrades:               6,     // Max 6 new positions per day (CODE ENFORCED)
+			MarketHoursOnly:              false, // Disabled by default (enable for stocks)
+			MarketOpenBufferMinutes:      15,    // Skip first 15 min after open (CODE ENFORCED)
+			MarketCloseBufferMinutes:     30,    // Stop 30 min before close (CODE ENFORCED)
 		},
 	}
 

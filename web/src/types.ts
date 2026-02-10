@@ -635,6 +635,11 @@ export interface RiskControlConfig {
   min_take_profit_distance_pct?: number;  // Min TP distance from entry % (default: 1.0)
   trade_cooldown_minutes?: number;        // Minutes to wait after close before new open (default: 10)
   max_daily_trades?: number;              // Max new positions per day (default: 6)
+
+  // Market Hours (CODE ENFORCED)
+  market_hours_only?: boolean;             // Only trade during US market hours (default: false)
+  market_open_buffer_minutes?: number;     // Minutes after open to wait (default: 15)
+  market_close_buffer_minutes?: number;    // Minutes before close to stop (default: 30)
 }
 
 // Debate Arena Types

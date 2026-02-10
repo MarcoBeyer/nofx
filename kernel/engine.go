@@ -1427,6 +1427,14 @@ func (e *StrategyEngine) BuildSystemPrompt(accountEquity float64, variant string
 	sb.WriteString(fmt.Sprintf("- Take Profit Distance: ≥%.1f%% from entry price (TP on wrong side WILL BE REJECTED by code)\n", minTPDist))
 	sb.WriteString(fmt.Sprintf("- Trade Cooldown: Wait ≥%d minutes after closing before opening new position\n", cooldownMin))
 	sb.WriteString(fmt.Sprintf("- Max Daily Trades: ≤%d new positions per day\n", maxDaily))
+	if riskControl.MarketHoursOnly {
+		openBuf := riskControl.MarketOpenBufferMinutes
+		closeBuf := riskControl.MarketCloseBufferMinutes
+		effectiveOpen := 9*60 + 30 + openBuf
+		effectiveClose := 16*60 - closeBuf
+		sb.WriteString(fmt.Sprintf("- Market Hours: Trading only allowed %d:%02d-%d:%02d ET (US market +%dmin open buffer, -%dmin close buffer)\n",
+			effectiveOpen/60, effectiveOpen%60, effectiveClose/60, effectiveClose%60, openBuf, closeBuf))
+	}
 	sb.WriteString("- CRITICAL: NEVER set take_profit below entry for LONG or above entry for SHORT\n")
 	sb.WriteString("- Prefer ATR-based stops (1.5-2x ATR) over tight arbitrary percentages\n\n")
 

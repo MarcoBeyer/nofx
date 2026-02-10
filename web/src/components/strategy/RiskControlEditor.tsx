@@ -53,6 +53,15 @@ export function RiskControlEditor({
       tradeCooldownDesc: { zh: '平仓后等待再次开仓的分钟数', en: 'Minutes to wait after close before new open' },
       maxDailyTrades: { zh: '每日最大交易次数', en: 'Max Daily Trades' },
       maxDailyTradesDesc: { zh: '每天允许的最大新开仓次数', en: 'Maximum new positions opened per day' },
+      // Market hours
+      marketHours: { zh: '市场交易时间（代码强制）', en: 'Market Hours (CODE ENFORCED)' },
+      marketHoursDesc: { zh: '仅在美国股市交易时间内允许开仓', en: 'Only allow new positions during US stock market hours' },
+      marketHoursOnly: { zh: '限制交易时间', en: 'Market Hours Only' },
+      marketHoursOnlyDesc: { zh: '启用后仅在美股交易时间9:30-16:00 ET内交易', en: 'When enabled, only trade during 9:30 AM - 4:00 PM ET' },
+      openBuffer: { zh: '开盘缓冲', en: 'Open Buffer' },
+      openBufferDesc: { zh: '开盘后等待的分钟数（避免开盘波动）', en: 'Minutes after open to wait (avoid opening volatility)' },
+      closeBuffer: { zh: '收盘缓冲', en: 'Close Buffer' },
+      closeBufferDesc: { zh: '收盘前停止开仓的分钟数', en: 'Minutes before close to stop entries' },
     }
     return translations[key]?.[language] || key
   }
@@ -539,6 +548,122 @@ export function RiskControlEditor({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Market Hours (CODE ENFORCED) */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <Clock className="w-5 h-5" style={{ color: '#3B82F6' }} />
+          <h3 className="font-medium" style={{ color: '#EAECEF' }}>
+            {t('marketHours')}
+          </h3>
+        </div>
+        <p className="text-xs mb-4" style={{ color: '#848E9C' }}>
+          {t('marketHoursDesc')}
+        </p>
+
+        {/* Toggle */}
+        <div
+          className="p-4 rounded-lg mb-4"
+          style={{ background: '#0B0E11', border: `1px solid ${config.market_hours_only ? '#3B82F6' : '#2B3139'}` }}
+        >
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.market_hours_only ?? false}
+              onChange={(e) => updateField('market_hours_only', e.target.checked)}
+              disabled={disabled}
+              className="w-5 h-5 accent-blue-500 rounded"
+            />
+            <div>
+              <span className="text-sm" style={{ color: '#EAECEF' }}>
+                {t('marketHoursOnly')}
+              </span>
+              <p className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
+                {t('marketHoursOnlyDesc')}
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Buffer controls - only shown when enabled */}
+        {config.market_hours_only && (
+          <div className="grid grid-cols-2 gap-4">
+            <div
+              className="p-4 rounded-lg"
+              style={{ background: '#0B0E11', border: '1px solid #3B82F6' }}
+            >
+              <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+                {t('openBuffer')}
+              </label>
+              <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+                {t('openBufferDesc')}
+              </p>
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  value={config.market_open_buffer_minutes ?? 15}
+                  onChange={(e) =>
+                    updateField('market_open_buffer_minutes', parseInt(e.target.value) || 15)
+                  }
+                  disabled={disabled}
+                  min={0}
+                  max={60}
+                  className="w-20 px-3 py-2 rounded"
+                  style={{
+                    background: '#1E2329',
+                    border: '1px solid #2B3139',
+                    color: '#EAECEF',
+                  }}
+                />
+                <span className="ml-2" style={{ color: '#848E9C' }}>min</span>
+              </div>
+              <p className="text-xs mt-2" style={{ color: '#3B82F6' }}>
+                → Earliest entry: {(() => {
+                  const m = 9 * 60 + 30 + (config.market_open_buffer_minutes ?? 15)
+                  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} ET`
+                })()}
+              </p>
+            </div>
+
+            <div
+              className="p-4 rounded-lg"
+              style={{ background: '#0B0E11', border: '1px solid #3B82F6' }}
+            >
+              <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+                {t('closeBuffer')}
+              </label>
+              <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+                {t('closeBufferDesc')}
+              </p>
+              <div className="flex items-center">
+                <input
+                  type="number"
+                  value={config.market_close_buffer_minutes ?? 30}
+                  onChange={(e) =>
+                    updateField('market_close_buffer_minutes', parseInt(e.target.value) || 30)
+                  }
+                  disabled={disabled}
+                  min={0}
+                  max={120}
+                  className="w-20 px-3 py-2 rounded"
+                  style={{
+                    background: '#1E2329',
+                    border: '1px solid #2B3139',
+                    color: '#EAECEF',
+                  }}
+                />
+                <span className="ml-2" style={{ color: '#848E9C' }}>min</span>
+              </div>
+              <p className="text-xs mt-2" style={{ color: '#3B82F6' }}>
+                → Last entry: {(() => {
+                  const m = 16 * 60 - (config.market_close_buffer_minutes ?? 30)
+                  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} ET`
+                })()}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
