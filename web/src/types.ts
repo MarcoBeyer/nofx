@@ -629,6 +629,12 @@ export interface RiskControlConfig {
   min_position_size: number;       // Min position size in USDT (CODE ENFORCED)
   min_risk_reward_ratio: number;   // Min take_profit / stop_loss ratio (AI guided)
   min_confidence: number;          // Min AI confidence to open position (AI guided)
+
+  // Trade Safeguards (CODE ENFORCED)
+  min_stop_loss_distance_pct?: number;    // Min SL distance from entry % (default: 2.0)
+  min_take_profit_distance_pct?: number;  // Min TP distance from entry % (default: 1.0)
+  trade_cooldown_minutes?: number;        // Minutes to wait after close before new open (default: 10)
+  max_daily_trades?: number;              // Max new positions per day (default: 6)
 }
 
 // Debate Arena Types

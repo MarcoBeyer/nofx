@@ -253,6 +253,15 @@ type RiskControlConfig struct {
 	MinRiskRewardRatio float64 `json:"min_risk_reward_ratio"`
 	// Min AI confidence to open position (AI guided)
 	MinConfidence int `json:"min_confidence"`
+
+	// Min stop loss distance from entry in percent (CODE ENFORCED, default: 2.0)
+	MinStopLossDistancePct float64 `json:"min_stop_loss_distance_pct"`
+	// Min take profit distance from entry in percent (CODE ENFORCED, default: 1.0)
+	MinTakeProfitDistancePct float64 `json:"min_take_profit_distance_pct"`
+	// Cooldown in minutes after closing a position before opening a new one (CODE ENFORCED, default: 10)
+	TradeCooldownMinutes int `json:"trade_cooldown_minutes"`
+	// Max number of new position opens per day (CODE ENFORCED, default: 6)
+	MaxDailyTrades int `json:"max_daily_trades"`
 }
 
 // NewStrategyStore creates a new StrategyStore
@@ -340,6 +349,10 @@ func GetDefaultStrategyConfig(lang string) StrategyConfig {
 			MinPositionSize:              12,  // Min 12 USDT per position (CODE ENFORCED)
 			MinRiskRewardRatio:           3.0, // Min 3:1 profit/loss ratio (AI guided)
 			MinConfidence:                75,  // Min 75% confidence (AI guided)
+			MinStopLossDistancePct:       2.0, // Min 2% stop loss distance (CODE ENFORCED)
+			MinTakeProfitDistancePct:     1.0, // Min 1% take profit distance (CODE ENFORCED)
+			TradeCooldownMinutes:         10,  // 10 min cooldown after closing (CODE ENFORCED)
+			MaxDailyTrades:               6,   // Max 6 new positions per day (CODE ENFORCED)
 		},
 	}
 

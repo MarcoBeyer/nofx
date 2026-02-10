@@ -149,6 +149,9 @@ type AutoTrader struct {
 	lastBalanceSyncTime   time.Time          // Last balance sync time
 	userID                string             // User ID
 	gridState             *GridState         // Grid trading state (only used when StrategyType == "grid_trading")
+	lastTradeCloseTime    time.Time          // [TRADE SAFEGUARD] Last time a position was closed
+	dailyTradeCount       int                // [TRADE SAFEGUARD] Number of open_long/open_short executed today
+	dailyTradeResetDay    int                // [TRADE SAFEGUARD] Day of month when count was last reset
 }
 
 // NewAutoTrader creates an automatic trader
@@ -1118,6 +1121,16 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *kernel.Decision, actio
 		return err
 	}
 
+	// [CODE ENFORCED] Trade cooldown check
+	if err := at.enforceTradeCooldown(); err != nil {
+		return err
+	}
+
+	// [CODE ENFORCED] Daily trade limit check
+	if err := at.enforceDailyTradeLimit(); err != nil {
+		return err
+	}
+
 	// Check if there's already a position in the same symbol and direction
 	for _, pos := range positions {
 		if pos["symbol"] == decision.Symbol && pos["side"] == "long" {
@@ -1202,6 +1215,10 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *kernel.Decision, actio
 
 	logger.Infof("  ✓ Position opened successfully, order ID: %v, quantity: %.4f", order["orderId"], quantity)
 
+	// [TRADE SAFEGUARD] Increment daily trade count
+	at.dailyTradeCount++
+	logger.Infof("  📊 [TRADE SAFEGUARD] Daily trade count: %d", at.dailyTradeCount)
+
 	// Record order to database and poll for confirmation
 	at.recordAndConfirmOrder(order, decision.Symbol, "open_long", quantity, marketData.CurrentPrice, decision.Leverage, 0)
 
@@ -1232,6 +1249,16 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *kernel.Decision, acti
 
 	// [CODE ENFORCED] Check max positions limit
 	if err := at.enforceMaxPositions(len(positions)); err != nil {
+		return err
+	}
+
+	// [CODE ENFORCED] Trade cooldown check
+	if err := at.enforceTradeCooldown(); err != nil {
+		return err
+	}
+
+	// [CODE ENFORCED] Daily trade limit check
+	if err := at.enforceDailyTradeLimit(); err != nil {
 		return err
 	}
 
@@ -1319,6 +1346,10 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *kernel.Decision, acti
 
 	logger.Infof("  ✓ Position opened successfully, order ID: %v, quantity: %.4f", order["orderId"], quantity)
 
+	// [TRADE SAFEGUARD] Increment daily trade count
+	at.dailyTradeCount++
+	logger.Infof("  📊 [TRADE SAFEGUARD] Daily trade count: %d", at.dailyTradeCount)
+
 	// Record order to database and poll for confirmation
 	at.recordAndConfirmOrder(order, decision.Symbol, "open_short", quantity, marketData.CurrentPrice, decision.Leverage, 0)
 
@@ -1398,6 +1429,11 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *kernel.Decision, acti
 	at.recordAndConfirmOrder(order, decision.Symbol, "close_long", quantity, marketData.CurrentPrice, 0, entryPrice)
 
 	logger.Infof("  ✓ Position closed successfully")
+
+	// [TRADE SAFEGUARD] Record close time for cooldown
+	at.lastTradeCloseTime = time.Now()
+	logger.Infof("  ⏱️ [TRADE SAFEGUARD] Cooldown timer started")
+
 	return nil
 }
 
@@ -1462,6 +1498,11 @@ func (at *AutoTrader) executeCloseShortWithRecord(decision *kernel.Decision, act
 	at.recordAndConfirmOrder(order, decision.Symbol, "close_short", quantity, marketData.CurrentPrice, 0, entryPrice)
 
 	logger.Infof("  ✓ Position closed successfully")
+
+	// [TRADE SAFEGUARD] Record close time for cooldown
+	at.lastTradeCloseTime = time.Now()
+	logger.Infof("  ⏱️ [TRADE SAFEGUARD] Cooldown timer started")
+
 	return nil
 }
 
@@ -2323,6 +2364,55 @@ func (at *AutoTrader) enforceMaxPositions(currentPositionCount int) error {
 
 	if currentPositionCount >= maxPositions {
 		return fmt.Errorf("❌ [RISK CONTROL] Already at max positions (%d/%d)", currentPositionCount, maxPositions)
+	}
+	return nil
+}
+
+// enforceTradeCooldown checks trade cooldown timer (CODE ENFORCED)
+func (at *AutoTrader) enforceTradeCooldown() error {
+	if at.config.StrategyConfig == nil {
+		return nil
+	}
+
+	cooldownMinutes := at.config.StrategyConfig.RiskControl.TradeCooldownMinutes
+	if cooldownMinutes <= 0 {
+		cooldownMinutes = 10 // Default: 10 minutes
+	}
+
+	if at.lastTradeCloseTime.IsZero() {
+		return nil // No previous close, no cooldown needed
+	}
+
+	elapsed := time.Since(at.lastTradeCloseTime)
+	cooldownDuration := time.Duration(cooldownMinutes) * time.Minute
+	if elapsed < cooldownDuration {
+		remaining := cooldownDuration - elapsed
+		return fmt.Errorf("❌ [TRADE SAFEGUARD] Trade cooldown active: %.0f seconds remaining (requires %d min after last close)",
+			remaining.Seconds(), cooldownMinutes)
+	}
+	return nil
+}
+
+// enforceDailyTradeLimit checks daily trade count (CODE ENFORCED)
+func (at *AutoTrader) enforceDailyTradeLimit() error {
+	if at.config.StrategyConfig == nil {
+		return nil
+	}
+
+	maxDaily := at.config.StrategyConfig.RiskControl.MaxDailyTrades
+	if maxDaily <= 0 {
+		maxDaily = 6 // Default: 6 trades per day
+	}
+
+	// Reset daily counter if day has changed
+	today := time.Now().Day()
+	if at.dailyTradeResetDay != today {
+		at.dailyTradeCount = 0
+		at.dailyTradeResetDay = today
+	}
+
+	if at.dailyTradeCount >= maxDaily {
+		return fmt.Errorf("❌ [TRADE SAFEGUARD] Daily trade limit reached (%d/%d)", at.dailyTradeCount, maxDaily)
 	}
 	return nil
 }

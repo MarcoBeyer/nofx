@@ -332,6 +332,8 @@ func GetFullDecisionWithStrategy(ctx *Context, mcpClient mcp.AIClient, engine *S
 		riskConfig.AltcoinMaxLeverage,
 		riskConfig.BTCETHMaxPositionValueRatio,
 		riskConfig.AltcoinMaxPositionValueRatio,
+		riskConfig.MinStopLossDistancePct,
+		riskConfig.MinTakeProfitDistancePct,
 	)
 
 	if decision != nil {
@@ -1402,7 +1404,31 @@ func (e *StrategyEngine) BuildSystemPrompt(accountEquity float64, variant string
 	sb.WriteString(fmt.Sprintf("- Trading Leverage: Altcoins max %dx | BTC/ETH max %dx\n",
 		riskControl.AltcoinMaxLeverage, riskControl.BTCETHMaxLeverage))
 	sb.WriteString(fmt.Sprintf("- Risk-Reward Ratio: ≥1:%.1f (take_profit / stop_loss)\n", riskControl.MinRiskRewardRatio))
-	sb.WriteString(fmt.Sprintf("- Min Confidence: ≥%d to open position\n\n", riskControl.MinConfidence))
+	sb.WriteString(fmt.Sprintf("- Min Confidence: ≥%d to open position\n", riskControl.MinConfidence))
+
+	// Trade safeguard rules
+	minSLDist := riskControl.MinStopLossDistancePct
+	if minSLDist <= 0 {
+		minSLDist = 2.0
+	}
+	minTPDist := riskControl.MinTakeProfitDistancePct
+	if minTPDist <= 0 {
+		minTPDist = 1.0
+	}
+	cooldownMin := riskControl.TradeCooldownMinutes
+	if cooldownMin <= 0 {
+		cooldownMin = 10
+	}
+	maxDaily := riskControl.MaxDailyTrades
+	if maxDaily <= 0 {
+		maxDaily = 6
+	}
+	sb.WriteString(fmt.Sprintf("- Stop Loss Distance: ≥%.1f%% from entry price (trades with tighter stops WILL BE REJECTED by code)\n", minSLDist))
+	sb.WriteString(fmt.Sprintf("- Take Profit Distance: ≥%.1f%% from entry price (TP on wrong side WILL BE REJECTED by code)\n", minTPDist))
+	sb.WriteString(fmt.Sprintf("- Trade Cooldown: Wait ≥%d minutes after closing before opening new position\n", cooldownMin))
+	sb.WriteString(fmt.Sprintf("- Max Daily Trades: ≤%d new positions per day\n", maxDaily))
+	sb.WriteString("- CRITICAL: NEVER set take_profit below entry for LONG or above entry for SHORT\n")
+	sb.WriteString("- Prefer ATR-based stops (1.5-2x ATR) over tight arbitrary percentages\n\n")
 
 	// Position sizing guidance
 	sb.WriteString("## Position Sizing Guidance\n")
@@ -2131,7 +2157,7 @@ func formatFloatSlice(values []float64) string {
 // AI Response Parsing
 // ============================================================================
 
-func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64) (*FullDecision, error) {
+func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64, minSLDistPct, minTPDistPct float64) (*FullDecision, error) {
 	cotTrace := extractCoTTrace(aiResponse)
 
 	decisions, err := extractDecisions(aiResponse)
@@ -2142,7 +2168,7 @@ func parseFullDecisionResponse(aiResponse string, accountEquity float64, btcEthL
 		}, fmt.Errorf("failed to extract decisions: %w", err)
 	}
 
-	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, btcEthPosRatio, altcoinPosRatio); err != nil {
+	if err := validateDecisions(decisions, accountEquity, btcEthLeverage, altcoinLeverage, btcEthPosRatio, altcoinPosRatio, minSLDistPct, minTPDistPct); err != nil {
 		return &FullDecision{
 			CoTTrace:  cotTrace,
 			Decisions: decisions,
@@ -2308,16 +2334,16 @@ func compactArrayOpen(s string) string {
 // Decision Validation
 // ============================================================================
 
-func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64) error {
+func validateDecisions(decisions []Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64, minSLDistPct, minTPDistPct float64) error {
 	for i := range decisions {
-		if err := validateDecision(&decisions[i], accountEquity, btcEthLeverage, altcoinLeverage, btcEthPosRatio, altcoinPosRatio); err != nil {
+		if err := validateDecision(&decisions[i], accountEquity, btcEthLeverage, altcoinLeverage, btcEthPosRatio, altcoinPosRatio, minSLDistPct, minTPDistPct); err != nil {
 			return fmt.Errorf("decision #%d validation failed: %w", i+1, err)
 		}
 	}
 	return nil
 }
 
-func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64) error {
+func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoinLeverage int, btcEthPosRatio, altcoinPosRatio float64, minSLDistPct, minTPDistPct float64) error {
 	validActions := map[string]bool{
 		"open_long":   true,
 		"open_short":  true,
@@ -2413,6 +2439,44 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 		if riskRewardRatio < 3.0 {
 			return fmt.Errorf("risk/reward ratio too low (%.2f:1), must be ≥3.0:1 [risk: %.2f%% reward: %.2f%%] [stop loss: %.2f take profit: %.2f]",
 				riskRewardRatio, riskPercent, rewardPercent, d.StopLoss, d.TakeProfit)
+		}
+
+		// === Trade Safeguard: Min SL distance ===
+		if minSLDistPct <= 0 {
+			minSLDistPct = 2.0
+		}
+		var slDistPct float64
+		if d.Action == "open_long" {
+			slDistPct = (entryPrice - d.StopLoss) / entryPrice * 100
+		} else {
+			slDistPct = (d.StopLoss - entryPrice) / entryPrice * 100
+		}
+		if slDistPct < minSLDistPct {
+			return fmt.Errorf("❌ [TRADE SAFEGUARD] stop loss too tight (%.2f%% from entry, min %.1f%%) [SL: %.4f, est. entry: %.4f]",
+				slDistPct, minSLDistPct, d.StopLoss, entryPrice)
+		}
+
+		// === Trade Safeguard: TP direction + min distance ===
+		if minTPDistPct <= 0 {
+			minTPDistPct = 1.0
+		}
+		var tpDistPct float64
+		if d.Action == "open_long" {
+			if d.TakeProfit <= entryPrice {
+				return fmt.Errorf("❌ [TRADE SAFEGUARD] take profit (%.4f) must be ABOVE entry (%.4f) for LONG",
+					d.TakeProfit, entryPrice)
+			}
+			tpDistPct = (d.TakeProfit - entryPrice) / entryPrice * 100
+		} else {
+			if d.TakeProfit >= entryPrice {
+				return fmt.Errorf("❌ [TRADE SAFEGUARD] take profit (%.4f) must be BELOW entry (%.4f) for SHORT",
+					d.TakeProfit, entryPrice)
+			}
+			tpDistPct = (entryPrice - d.TakeProfit) / entryPrice * 100
+		}
+		if tpDistPct < minTPDistPct {
+			return fmt.Errorf("❌ [TRADE SAFEGUARD] take profit too close (%.2f%% from entry, min %.1f%%) [TP: %.4f, est. entry: %.4f]",
+				tpDistPct, minTPDistPct, d.TakeProfit, entryPrice)
 		}
 	}
 

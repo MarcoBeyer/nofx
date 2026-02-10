@@ -1,4 +1,4 @@
-import { Shield, AlertTriangle } from 'lucide-react'
+import { Shield, AlertTriangle, Clock } from 'lucide-react'
 import type { RiskControlConfig } from '../../types'
 
 interface RiskControlEditorProps {
@@ -42,6 +42,17 @@ export function RiskControlEditor({
       minPositionSizeDesc: { zh: 'USDT 最小名义价值', en: 'Minimum notional value in USDT' },
       minConfidence: { zh: '最小信心度', en: 'Min Confidence' },
       minConfidenceDesc: { zh: 'AI 开仓信心度阈值', en: 'AI confidence threshold for entry' },
+      // Trade safeguards
+      tradeSafeguards: { zh: '交易安全保护（代码强制）', en: 'Trade Safeguards (CODE ENFORCED)' },
+      tradeSafeguardsDesc: { zh: '防止过度交易和过紧止损，由代码强制执行', en: 'Prevents overtrading and too-tight stops, enforced by code' },
+      minSLDistance: { zh: '最小止损距离', en: 'Min Stop Loss Distance' },
+      minSLDistanceDesc: { zh: '止损价与入场价的最小距离百分比', en: 'Min % distance from entry to stop loss' },
+      minTPDistance: { zh: '最小止盈距离', en: 'Min Take Profit Distance' },
+      minTPDistanceDesc: { zh: '止盈价与入场价的最小距离百分比', en: 'Min % distance from entry to take profit' },
+      tradeCooldown: { zh: '交易冷却时间', en: 'Trade Cooldown' },
+      tradeCooldownDesc: { zh: '平仓后等待再次开仓的分钟数', en: 'Minutes to wait after close before new open' },
+      maxDailyTrades: { zh: '每日最大交易次数', en: 'Max Daily Trades' },
+      maxDailyTradesDesc: { zh: '每天允许的最大新开仓次数', en: 'Maximum new positions opened per day' },
     }
     return translations[key]?.[language] || key
   }
@@ -381,6 +392,149 @@ export function RiskControlEditor({
               />
               <span className="w-12 text-center font-mono" style={{ color: '#0ECB81' }}>
                 {config.min_confidence ?? 75}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Trade Safeguards (CODE ENFORCED) */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <Clock className="w-5 h-5" style={{ color: '#F6465D' }} />
+          <h3 className="font-medium" style={{ color: '#EAECEF' }}>
+            {t('tradeSafeguards')}
+          </h3>
+        </div>
+        <p className="text-xs mb-4" style={{ color: '#848E9C' }}>
+          {t('tradeSafeguardsDesc')}
+        </p>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* Min SL Distance */}
+          <div
+            className="p-4 rounded-lg"
+            style={{ background: '#0B0E11', border: '1px solid #F6465D' }}
+          >
+            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+              {t('minSLDistance')}
+            </label>
+            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+              {t('minSLDistanceDesc')}
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                value={config.min_stop_loss_distance_pct ?? 2}
+                onChange={(e) =>
+                  updateField('min_stop_loss_distance_pct', parseFloat(e.target.value))
+                }
+                disabled={disabled}
+                min={0.5}
+                max={10}
+                step={0.5}
+                className="flex-1 accent-red-500"
+              />
+              <span className="w-14 text-center font-mono" style={{ color: '#F6465D' }}>
+                {config.min_stop_loss_distance_pct ?? 2}%
+              </span>
+            </div>
+          </div>
+
+          {/* Min TP Distance */}
+          <div
+            className="p-4 rounded-lg"
+            style={{ background: '#0B0E11', border: '1px solid #0ECB81' }}
+          >
+            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+              {t('minTPDistance')}
+            </label>
+            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+              {t('minTPDistanceDesc')}
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                value={config.min_take_profit_distance_pct ?? 1}
+                onChange={(e) =>
+                  updateField('min_take_profit_distance_pct', parseFloat(e.target.value))
+                }
+                disabled={disabled}
+                min={0.5}
+                max={10}
+                step={0.5}
+                className="flex-1 accent-green-500"
+              />
+              <span className="w-14 text-center font-mono" style={{ color: '#0ECB81' }}>
+                {config.min_take_profit_distance_pct ?? 1}%
+              </span>
+            </div>
+          </div>
+
+          {/* Trade Cooldown */}
+          <div
+            className="p-4 rounded-lg"
+            style={{ background: '#0B0E11', border: '1px solid #F0B90B' }}
+          >
+            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+              {t('tradeCooldown')}
+            </label>
+            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+              {t('tradeCooldownDesc')}
+            </p>
+            <div className="flex items-center">
+              <input
+                type="number"
+                value={config.trade_cooldown_minutes ?? 10}
+                onChange={(e) =>
+                  updateField('trade_cooldown_minutes', parseInt(e.target.value) || 10)
+                }
+                disabled={disabled}
+                min={0}
+                max={60}
+                className="w-20 px-3 py-2 rounded"
+                style={{
+                  background: '#1E2329',
+                  border: '1px solid #2B3139',
+                  color: '#EAECEF',
+                }}
+              />
+              <span className="ml-2" style={{ color: '#848E9C' }}>
+                min
+              </span>
+            </div>
+          </div>
+
+          {/* Max Daily Trades */}
+          <div
+            className="p-4 rounded-lg"
+            style={{ background: '#0B0E11', border: '1px solid #F0B90B' }}
+          >
+            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
+              {t('maxDailyTrades')}
+            </label>
+            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
+              {t('maxDailyTradesDesc')}
+            </p>
+            <div className="flex items-center">
+              <input
+                type="number"
+                value={config.max_daily_trades ?? 6}
+                onChange={(e) =>
+                  updateField('max_daily_trades', parseInt(e.target.value) || 6)
+                }
+                disabled={disabled}
+                min={1}
+                max={50}
+                className="w-20 px-3 py-2 rounded"
+                style={{
+                  background: '#1E2329',
+                  border: '1px solid #2B3139',
+                  color: '#EAECEF',
+                }}
+              />
+              <span className="ml-2" style={{ color: '#848E9C' }}>
+                trades
               </span>
             </div>
           </div>
