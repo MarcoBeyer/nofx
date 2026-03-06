@@ -339,8 +339,8 @@ export const translations = {
     selectTradingStrategy: 'Select Trading Strategy',
     useStrategy: 'Use Strategy',
     noStrategyManual: '-- No Strategy (Manual Configuration) --',
-    active: ' (Active)',
-    default: ' [Default]',
+    activeStrategy: ' (Active)',
+    defaultStrategy: ' [Default]',
     noStrategyHint: 'No strategies yet, please create in Strategy Studio first',
     strategyDetails: 'Strategy Details',
     activating: 'Activating',
@@ -905,7 +905,7 @@ export const translations = {
 
     faqCreateStrategy: 'How do I create a trading strategy?',
     faqCreateStrategyAnswer:
-      'Go to Strategy Studio: 1) Coin Source - select which coins to trade (static list, AI500 pool, or OI Top ranking); 2) Indicators - enable technical indicators (EMA, MACD, RSI, ATR, Volume, OI, Funding Rate); 3) Risk Controls - set leverage limits, max positions, margin usage cap, position size limits; 4) Custom Prompt (optional) - add specific instructions for the AI. Save and assign to a trader.',
+      'Go to Strategy Studio: 1) Coin Source - select which coins to trade (static list, AI500 pool, or OI ranking); 2) Indicators - enable technical indicators (EMA, MACD, RSI, ATR, Volume, OI, Funding Rate); 3) Risk Controls - set leverage limits, max positions, margin usage cap, position size limits; 4) Custom Prompt (optional) - add specific instructions for the AI. Save and assign to a trader.',
 
     faqCreateTrader: 'How do I create and start a trader?',
     faqCreateTraderAnswer:
@@ -1563,8 +1563,8 @@ export const translations = {
     selectTradingStrategy: '选择交易策略',
     useStrategy: '使用策略',
     noStrategyManual: '-- 不使用策略（手动配置） --',
-    active: ' (当前激活)',
-    default: ' [默认]',
+    activeStrategy: ' (当前激活)',
+    defaultStrategy: ' [默认]',
     noStrategyHint: '暂无策略，请先在策略工作室创建策略',
     strategyDetails: '策略详情',
     activating: '激活中',
@@ -2015,11 +2015,11 @@ export const translations = {
     faqCategoryContributing: '参与贡献',
 
     // ===== 入门指南 =====
-    faqWhatIsNOFX: 'NOFX 是什么？',
+    faqWhatIsNOFX: 'What is NOFX?',
     faqWhatIsNOFXAnswer:
       'NOFX 是一个开源的 AI 驱动交易操作系统，支持加密货币和美股市场。它使用大语言模型（LLM）如 DeepSeek、GPT、Claude、Gemini 来分析市场数据，进行自主交易决策。核心功能包括：多 AI 模型支持、多交易所交易、可视化策略构建器、回测系统、以及用于共识决策的 AI 辩论竞技场。',
 
-    faqHowDoesItWork: 'NOFX 是如何工作的？',
+    faqHowDoesItWork: 'How does NOFX work?',
     faqHowDoesItWorkAnswer:
       'NOFX 分 5 步工作：1）配置 AI 模型和交易所 API 凭证；2）创建交易策略（币种选择、指标、风控）；3）创建"交易员"，组合 AI 模型 + 交易所 + 策略；4）启动交易员 - 它会定期分析市场数据并做出买入/卖出/持有决策；5）在仪表板上监控表现。AI 使用思维链（Chain of Thought）推理来解释每个决策。',
 
@@ -2083,7 +2083,7 @@ export const translations = {
 
     faqCreateStrategy: '如何创建交易策略？',
     faqCreateStrategyAnswer:
-      '进入策略工作室：1）币种来源 - 选择交易哪些币（静态列表、AI500 池或 OI 排行）；2）指标 - 启用技术指标（EMA、MACD、RSI、ATR、成交量、OI、资金费率）；3）风控 - 设置杠杆限制、最大持仓数、保证金使用上限、仓位大小限制；4）自定义提示词（可选）- 为 AI 添加特定指令。保存后分配给交易员。',
+      '进入策略工作室：1）币种来源 - 选择交易哪些币（静态列表、AI500 池或 OI 排行）；2）指标 - 启用技术指标（EMA、MACD、RSI、ATR、成交量、持仓量、资金费率）；3）风控 - 设置杠杆限制、最大持仓数、保证金使用上限、仓位大小限制；4）自定义提示词（可选）- 为 AI 添加特定指令。保存后分配给交易员。',
 
     faqCreateTrader: '如何创建并启动交易员？',
     faqCreateTraderAnswer:
@@ -2215,15 +2215,15 @@ export const translations = {
     faqHowToContributeAnswer:
       'NOFX 是开源项目，欢迎贡献！贡献方式：1）代码 - 修复 bug、添加功能（查看 GitHub Issues）；2）文档 - 改进指南、翻译；3）Bug 报告 - 详细报告问题；4）功能建议 - 提出改进意见。从标记为"good first issue"的问题开始。所有贡献者可能获得空投奖励。',
 
-    faqPRGuidelines: 'PR 指南是什么？',
+    faqPRGuidelines: 'What are the PR guidelines?',
     faqPRGuidelinesAnswer:
       'PR 流程：1）Fork 仓库到您的账户；2）从 dev 创建功能分支："git checkout -b feat/your-feature"；3）修改代码，运行 lint："npm --prefix web run lint"；4）使用 Conventional Commits 格式提交；5）推送并创建 PR 到 NoFxAiOS/nofx:dev；6）关联相关 issue（Closes #123）；7）等待审核。保持 PR 小而聚焦。',
 
-    faqBountyProgram: '有赏金计划吗？',
+    faqBountyProgram: 'Is there a bounty program?',
     faqBountyProgramAnswer:
       '有！贡献者根据贡献获得空投奖励：代码提交（权重最高）、bug 修复、功能建议、文档。带"bounty"标签的 issue 有现金奖励。完成工作后提交 Bounty Claim。查看 CONTRIBUTING.md 了解奖励结构详情。',
 
-    faqReportBugs: '如何报告 bug？',
+    faqReportBugs: 'How do I report bugs?',
     faqReportBugsAnswer:
       'Bug 报告：在 GitHub 开 Issue，包含：1）问题清晰描述；2）复现步骤；3）预期 vs 实际行为；4）系统信息（OS、Docker 版本、浏览器）；5）相关日志。安全漏洞：不要开公开 issue - 请在 Twitter 私信 @Web3Tinkle。',
 
@@ -2732,10 +2732,9 @@ export const translations = {
     noExchangeAccount: 'Belum punya akun bursa? Klik untuk mendaftar',
     discount: 'Diskon',
     selectTradingStrategy: 'Pilih Strategi Trading',
-    useStrategy: 'Gunakan Strategi',
     noStrategyManual: '-- Tanpa Strategi (Konfigurasi Manual) --',
-    active: ' (Aktif)',
-    default: ' [Default]',
+    activeStrategy: ' (Aktif)',
+    defaultStrategy: ' [Default]',
     noStrategyHint: 'Belum ada strategi, buat di Strategy Studio terlebih dahulu',
     strategyDetails: 'Detail Strategi',
     activating: 'Mengaktifkan',
