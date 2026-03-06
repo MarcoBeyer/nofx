@@ -699,6 +699,7 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 	case "hyperliquid":
 		traderConfig.HyperliquidPrivateKey = string(exchangeCfg.APIKey)
 		traderConfig.HyperliquidWalletAddr = exchangeCfg.HyperliquidWalletAddr
+		traderConfig.HyperliquidUnifiedAcct = exchangeCfg.HyperliquidUnifiedAcct
 	case "aster":
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
@@ -718,6 +719,9 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		} else {
 			traderConfig.AlpacaFeedURL = "https://api.alpaca.markets"
 		}
+	case "indodax":
+		traderConfig.IndodaxAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.IndodaxSecretKey = string(exchangeCfg.SecretKey)
 	}
 
 	// Set API keys based on AI model (convert EncryptedString to string)

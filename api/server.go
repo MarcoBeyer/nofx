@@ -142,8 +142,6 @@ func (s *Server) setupRoutes() {
 		// Authentication related routes (no authentication required)
 		api.POST("/register", s.handleRegister)
 		api.POST("/login", s.handleLogin)
-		api.POST("/verify-otp", s.handleVerifyOTP)
-		api.POST("/complete-registration", s.handleCompleteRegistration)
 
 		// Routes requiring authentication
 		protected := api.Group("/", s.authMiddleware())
@@ -484,6 +482,7 @@ type UpdateExchangeConfigRequest struct {
 		Passphrase              string `json:"passphrase"` // OKX specific
 		Testnet                 bool   `json:"testnet"`
 		HyperliquidWalletAddr   string `json:"hyperliquid_wallet_addr"`
+		HyperliquidUnifiedAcct  bool   `json:"hyperliquid_unified_account"` // Unified Account mode
 		AsterUser               string `json:"aster_user"`
 		AsterSigner             string `json:"aster_signer"`
 		AsterPrivateKey         string `json:"aster_private_key"`
@@ -600,6 +599,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				string(exchangeCfg.APIKey), // private key
 				exchangeCfg.HyperliquidWalletAddr,
 				exchangeCfg.Testnet,
+				exchangeCfg.HyperliquidUnifiedAcct,
 			)
 		case "aster":
 			tempTrader, createErr = aster.NewAsterTrader(
@@ -1169,6 +1169,7 @@ func (s *Server) handleSyncBalance(c *gin.Context) {
 			string(exchangeCfg.APIKey),
 			exchangeCfg.HyperliquidWalletAddr,
 			exchangeCfg.Testnet,
+			exchangeCfg.HyperliquidUnifiedAcct,
 		)
 	case "aster":
 		tempTrader, createErr = aster.NewAsterTrader(
@@ -1343,6 +1344,7 @@ func (s *Server) handleClosePosition(c *gin.Context) {
 			string(exchangeCfg.APIKey),
 			exchangeCfg.HyperliquidWalletAddr,
 			exchangeCfg.Testnet,
+			exchangeCfg.HyperliquidUnifiedAcct,
 		)
 	case "aster":
 		tempTrader, createErr = aster.NewAsterTrader(
@@ -1935,7 +1937,7 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 			tradersToReload[t.ID] = true
 		}
 
-		err := s.store.Exchange().Update(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Passphrase, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.LighterAPIKeyIndex)
+		err := s.store.Exchange().Update(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Passphrase, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.HyperliquidUnifiedAcct, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.LighterWalletAddr, exchangeData.LighterPrivateKey, exchangeData.LighterAPIKeyPrivateKey, exchangeData.LighterAPIKeyIndex)
 		if err != nil {
 			SafeInternalError(c, fmt.Sprintf("Update exchange %s", exchangeID), err)
 			return
@@ -1969,6 +1971,7 @@ type CreateExchangeRequest struct {
 	Passphrase              string `json:"passphrase"`
 	Testnet                 bool   `json:"testnet"`
 	HyperliquidWalletAddr   string `json:"hyperliquid_wallet_addr"`
+	HyperliquidUnifiedAcct  bool   `json:"hyperliquid_unified_account"` // Unified Account mode: Spot as Perp collateral
 	AsterUser               string `json:"aster_user"`
 	AsterSigner             string `json:"aster_signer"`
 	AsterPrivateKey         string `json:"aster_private_key"`
@@ -2032,7 +2035,7 @@ func (s *Server) handleCreateExchange(c *gin.Context) {
 	// Validate exchange type
 	validTypes := map[string]bool{
 		"binance": true, "bybit": true, "okx": true, "bitget": true,
-		"hyperliquid": true, "aster": true, "lighter": true, "alpaca": true, "gate": true, "kucoin": true,
+		"hyperliquid": true, "aster": true, "lighter": true, "alpaca": true, "gate": true, "kucoin": true, "indodax": true,
 	}
 	if !validTypes[req.ExchangeType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid exchange type: %s", req.ExchangeType)})
@@ -2043,7 +2046,8 @@ func (s *Server) handleCreateExchange(c *gin.Context) {
 	id, err := s.store.Exchange().Create(
 		userID, req.ExchangeType, req.AccountName, req.Enabled,
 		req.APIKey, req.SecretKey, req.Passphrase, req.Testnet,
-		req.HyperliquidWalletAddr, req.AsterUser, req.AsterSigner, req.AsterPrivateKey,
+		req.HyperliquidWalletAddr, req.HyperliquidUnifiedAcct,
+		req.AsterUser, req.AsterSigner, req.AsterPrivateKey,
 		req.LighterWalletAddr, req.LighterPrivateKey, req.LighterAPIKeyPrivateKey, req.LighterAPIKeyIndex,
 	)
 	if err != nil {
@@ -3118,29 +3122,9 @@ func (s *Server) handleRegister(c *gin.Context) {
 		return
 	}
 
-	// Check if email already exists (must check before maxUsers to allow incomplete OTP users)
-	existingUser, err := s.store.User().GetByEmail(req.Email)
+	// Check if email already exists
+	_, err := s.store.User().GetByEmail(req.Email)
 	if err == nil {
-		// User exists, check OTP verification status
-		if !existingUser.OTPVerified {
-			// OTP not verified, verify password first for security
-			if !auth.CheckPassword(req.Password, existingUser.PasswordHash) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Email or password incorrect"})
-				return
-			}
-			// Password correct, allow user to continue OTP setup
-			// Return existing OTP information
-			qrCodeURL := auth.GetOTPQRCodeURL(existingUser.OTPSecret, req.Email)
-			c.JSON(http.StatusOK, gin.H{
-				"user_id":     existingUser.ID,
-				"email":       existingUser.Email,
-				"otp_secret":  existingUser.OTPSecret,
-				"qr_code_url": qrCodeURL,
-				"message":     "Incomplete registration detected, please continue OTP setup",
-			})
-			return
-		}
-		// OTP already verified, reject duplicate registration
 		c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
 		return
 	}
@@ -3181,69 +3165,17 @@ func (s *Server) handleRegister(c *gin.Context) {
 		return
 	}
 
-	// Generate OTP secret
-	otpSecret, err := auth.GenerateOTPSecret()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP secret generation failed"})
-		return
-	}
-
-	// Create user (unverified OTP status)
+	// Create user
 	userID := uuid.New().String()
 	user := &store.User{
 		ID:           userID,
 		Email:        req.Email,
 		PasswordHash: passwordHash,
-		OTPSecret:    otpSecret,
-		OTPVerified:  false,
 	}
 
 	err = s.store.User().Create(user)
 	if err != nil {
 		SafeInternalError(c, "Failed to create user", err)
-		return
-	}
-
-	// Return OTP setup information
-	qrCodeURL := auth.GetOTPQRCodeURL(otpSecret, req.Email)
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":     userID,
-		"email":       req.Email,
-		"otp_secret":  otpSecret,
-		"qr_code_url": qrCodeURL,
-		"message":     "Please scan the QR code with Google Authenticator and verify OTP",
-	})
-}
-
-// handleCompleteRegistration Complete registration (verify OTP)
-func (s *Server) handleCompleteRegistration(c *gin.Context) {
-	var req struct {
-		UserID  string `json:"user_id" binding:"required"`
-		OTPCode string `json:"otp_code" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		SafeBadRequest(c, "Invalid request parameters")
-		return
-	}
-
-	// Get user information
-	user, err := s.store.User().GetByID(req.UserID)
-	if err != nil {
-		SafeNotFound(c, "User")
-		return
-	}
-
-	// Verify OTP
-	if !auth.VerifyOTP(user.OTPSecret, req.OTPCode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP code error"})
-		return
-	}
-
-	// Update user OTP verified status
-	err = s.store.User().UpdateOTPVerified(req.UserID, true)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user status"})
 		return
 	}
 
@@ -3264,7 +3196,7 @@ func (s *Server) handleCompleteRegistration(c *gin.Context) {
 		"token":   token,
 		"user_id": user.ID,
 		"email":   user.Email,
-		"message": "Registration completed",
+		"message": "Registration successful",
 	})
 }
 
@@ -3293,56 +3225,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	// Check if OTP is verified
-	if !user.OTPVerified {
-		// Return OTP info so user can complete setup
-		qrCodeURL := auth.GetOTPQRCodeURL(user.OTPSecret, user.Email)
-		c.JSON(http.StatusOK, gin.H{
-			"user_id":            user.ID,
-			"email":              user.Email,
-			"otp_secret":         user.OTPSecret,
-			"qr_code_url":        qrCodeURL,
-			"requires_otp_setup": true,
-			"message":            "Please complete OTP setup first",
-		})
-		return
-	}
-
-	// Return status requiring OTP verification
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":      user.ID,
-		"email":        user.Email,
-		"message":      "Please enter Google Authenticator code",
-		"requires_otp": true,
-	})
-}
-
-// handleVerifyOTP Verify OTP and complete login
-func (s *Server) handleVerifyOTP(c *gin.Context) {
-	var req struct {
-		UserID  string `json:"user_id" binding:"required"`
-		OTPCode string `json:"otp_code" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		SafeBadRequest(c, "Invalid request parameters")
-		return
-	}
-
-	// Get user information
-	user, err := s.store.User().GetByID(req.UserID)
-	if err != nil {
-		SafeNotFound(c, "User")
-		return
-	}
-
-	// Verify OTP
-	if !auth.VerifyOTP(user.OTPSecret, req.OTPCode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Verification code error"})
-		return
-	}
-
-	// Generate JWT token
+	// Issue token directly after password verification.
 	token, err := auth.GenerateJWT(user.ID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -3357,12 +3240,11 @@ func (s *Server) handleVerifyOTP(c *gin.Context) {
 	})
 }
 
-// handleResetPassword Reset password (via email + OTP verification)
+// handleResetPassword Reset password via email and new password
 func (s *Server) handleResetPassword(c *gin.Context) {
 	var req struct {
 		Email       string `json:"email" binding:"required,email"`
 		NewPassword string `json:"new_password" binding:"required,min=6"`
-		OTPCode     string `json:"otp_code" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -3374,12 +3256,6 @@ func (s *Server) handleResetPassword(c *gin.Context) {
 	user, err := s.store.User().GetByEmail(req.Email)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Email does not exist"})
-		return
-	}
-
-	// Verify OTP
-	if !auth.VerifyOTP(user.OTPSecret, req.OTPCode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Google Authenticator code error"})
 		return
 	}
 
@@ -3416,7 +3292,7 @@ func (s *Server) handleGetSupportedModels(c *gin.Context) {
 		{"id": "deepseek", "name": "DeepSeek", "provider": "deepseek", "defaultModel": "deepseek-chat"},
 		{"id": "qwen", "name": "Qwen", "provider": "qwen", "defaultModel": "qwen3-max"},
 		{"id": "openai", "name": "OpenAI", "provider": "openai", "defaultModel": "gpt-5.1"},
-		{"id": "claude", "name": "Claude", "provider": "claude", "defaultModel": "claude-opus-4-5-20251101"},
+		{"id": "claude", "name": "Claude", "provider": "claude", "defaultModel": "claude-opus-4-6"},
 		{"id": "gemini", "name": "Google Gemini", "provider": "gemini", "defaultModel": "gemini-3-pro-preview"},
 		{"id": "grok", "name": "Grok (xAI)", "provider": "grok", "defaultModel": "grok-3-latest"},
 		{"id": "kimi", "name": "Kimi (Moonshot)", "provider": "kimi", "defaultModel": "moonshot-v1-auto"},

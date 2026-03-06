@@ -125,7 +125,7 @@ export function TraderConfigModal({
 
   const handleFetchCurrentBalance = async () => {
     if (!isEditMode || !traderData?.trader_id) {
-      setBalanceFetchError('只有在编辑模式下才能获取当前余额')
+      setBalanceFetchError(t('fetchBalanceEditModeOnly', language))
       return
     }
 
@@ -142,13 +142,13 @@ export function TraderConfigModal({
         const currentBalance =
           result.data.total_equity || result.data.balance || 0
         setFormData((prev) => ({ ...prev, initial_balance: currentBalance }))
-        toast.success('已获取当前余额')
+        toast.success(t('balanceFetched', language))
       } else {
-        throw new Error(result.message || '获取余额失败')
+        throw new Error(result.message || t('balanceFetchFailed', language))
       }
     } catch (error) {
-      console.error('获取余额失败:', error)
-      setBalanceFetchError('获取余额失败，请检查网络连接')
+      console.error(t('balanceFetchFailed', language) + ':', error)
+      setBalanceFetchError(t('balanceFetchNetworkError', language))
     } finally {
       setIsFetchingBalance(false)
     }
@@ -175,13 +175,13 @@ export function TraderConfigModal({
       }
 
       await toast.promise(onSave(saveData), {
-        loading: '正在保存…',
-        success: '保存成功',
-        error: '保存失败',
+        loading: t('saving', language),
+        success: t('saveSuccess', language),
+        error: t('saveFailed', language),
       })
       onClose()
     } catch (error) {
-      console.error('保存失败:', error)
+      console.error(t('saveFailed', language) + ':', error)
     } finally {
       setIsSaving(false)
     }
@@ -208,14 +208,10 @@ export function TraderConfigModal({
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#EAECEF]">
-                {isEditMode
-                  ? (language === 'zh' ? '修改交易员' : 'Edit Trader')
-                  : (language === 'zh' ? '创建交易员' : 'Create Trader')}
+                {isEditMode ? t('editTrader', language) : t('createTrader', language)}
               </h2>
               <p className="text-sm text-[#848E9C] mt-1">
-                {isEditMode
-                  ? (language === 'zh' ? '修改交易员配置' : 'Modify trader configuration')
-                  : (language === 'zh' ? '选择策略并配置基础参数' : 'Select strategy and configure basic parameters')}
+                {isEditMode ? t('editTraderConfig', language) : t('selectStrategyAndConfigParams', language)}
               </p>
             </div>
           </div>
@@ -235,12 +231,12 @@ export function TraderConfigModal({
           {/* Basic Info */}
           <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              <span className="text-[#F0B90B]">1</span> {language === 'zh' ? '基础配置' : 'Basic Configuration'}
+              <span className="text-[#F0B90B]">1</span> {t('basicConfig', language)}
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-[#EAECEF] block mb-2">
-                  {language === 'zh' ? '交易员名称' : 'Trader Name'} <span className="text-red-500">*</span>
+                  {t('traderNameRequired', language)}
                 </label>
                 <input
                   type="text"
@@ -249,13 +245,13 @@ export function TraderConfigModal({
                     handleInputChange('trader_name', e.target.value)
                   }
                   className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
-                  placeholder={language === 'zh' ? '请输入交易员名称' : 'Enter trader name'}
+                  placeholder={t('enterTraderNamePlaceholder', language)}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? 'AI模型' : 'AI Model'} <span className="text-red-500">*</span>
+                    {t('aiModelRequired', language)}
                   </label>
                   <select
                     value={formData.ai_model}
@@ -273,7 +269,7 @@ export function TraderConfigModal({
                 </div>
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? '交易所' : 'Exchange'} <span className="text-red-500">*</span>
+                    {t('exchangeRequired', language)}
                   </label>
                   <select
                     value={formData.exchange_id}
@@ -304,10 +300,10 @@ export function TraderConfigModal({
                         className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#848E9C] hover:text-[#F0B90B] transition-colors"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>{language === 'zh' ? '还没有交易所账号？点击注册' : "No exchange account? Register here"}</span>
+                        <span>{t('noExchangeAccount', language)}</span>
                         {regLink.hasReferral && (
                           <span className="px-1.5 py-0.5 bg-[#F0B90B]/10 text-[#F0B90B] rounded text-[10px]">
-                            {language === 'zh' ? '折扣优惠' : 'Discount'}
+                            {t('discount', language)}
                           </span>
                         )}
                         <ExternalLink className="w-3 h-3" />
@@ -322,13 +318,13 @@ export function TraderConfigModal({
           {/* Strategy Selection */}
           <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              <span className="text-[#F0B90B]">2</span> {language === 'zh' ? '选择交易策略' : 'Select Trading Strategy'}
+              <span className="text-[#F0B90B]">2</span> {t('selectTradingStrategy', language)}
               <Sparkles className="w-4 h-4 text-[#F0B90B]" />
             </h3>
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-[#EAECEF] block mb-2">
-                  {language === 'zh' ? '使用策略' : 'Use Strategy'}
+                  {t('useStrategy', language)}
                 </label>
                 <select
                   value={formData.strategy_id}
@@ -337,18 +333,18 @@ export function TraderConfigModal({
                   }
                   className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
                 >
-                  <option value="">{language === 'zh' ? '-- 不使用策略（手动配置）--' : '-- No strategy (manual config) --'}</option>
+                  <option value="">{t('noStrategyManual', language)}</option>
                   {strategies.map((strategy) => (
                     <option key={strategy.id} value={strategy.id}>
                       {strategy.name}
-                      {strategy.is_active ? (language === 'zh' ? ' (当前激活)' : ' (Active)') : ''}
-                      {strategy.is_default ? (language === 'zh' ? ' [默认]' : ' [Default]') : ''}
+                      {strategy.is_active ? t('active', language) : ''}
+                      {strategy.is_default ? t('default', language) : ''}
                     </option>
                   ))}
                 </select>
                 {strategies.length === 0 && (
                   <p className="text-xs text-[#848E9C] mt-2">
-                    {language === 'zh' ? '暂无策略，请先在策略工作室创建策略' : 'No strategies yet. Please create one in Strategy Studio first.'}
+                    {t('noStrategyHint', language)}
                   </p>
                 )}
               </div>
@@ -358,11 +354,11 @@ export function TraderConfigModal({
                 <div className="mt-3 p-4 bg-[#1E2329] border border-[#2B3139] rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[#F0B90B] text-sm font-medium">
-                      {language === 'zh' ? '策略详情' : 'Strategy Details'}
+                      {t('strategyDetails', language)}
                     </span>
                     {selectedStrategy.is_active && (
                       <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
-                        {language === 'zh' ? '激活中' : 'Active'}
+                        {t('activating', language)}
                       </span>
                     )}
                   </div>
@@ -371,14 +367,12 @@ export function TraderConfigModal({
                   </p>
                   <div className="grid grid-cols-2 gap-2 text-xs text-[#848E9C]">
                     <div>
-                      {language === 'zh' ? '币种来源' : 'Coin Source'}: {selectedStrategy.config.coin_source.source_type === 'static'
-                        ? (language === 'zh' ? '固定币种' : 'Static')
-                        : selectedStrategy.config.coin_source.source_type === 'ai500' ? 'AI500'
-                          : selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top'
-                            : (language === 'zh' ? '混合' : 'Mixed')}
+                      {t('coinSource', language)}: {selectedStrategy.config.coin_source.source_type === 'static' ? (language === 'zh' ? '固定币种' : 'Static') :
+                        selectedStrategy.config.coin_source.source_type === 'ai500' ? 'AI500' :
+                          selectedStrategy.config.coin_source.source_type === 'oi_top' ? 'OI Top' : (language === 'zh' ? '混合' : 'Mixed')}
                     </div>
                     <div>
-                      {language === 'zh' ? '保证金上限' : 'Max Margin'}: {((selectedStrategy.config.risk_control?.max_margin_usage || 0.9) * 100).toFixed(0)}%
+                      {t('marginLimit', language)}: {((selectedStrategy.config.risk_control?.max_margin_usage || 0.9) * 100).toFixed(0)}%
                     </div>
                   </div>
                 </div>
@@ -389,14 +383,14 @@ export function TraderConfigModal({
           {/* Trading Parameters */}
           <div className="bg-[#0B0E11] border border-[#2B3139] rounded-lg p-5">
             <h3 className="text-lg font-semibold text-[#EAECEF] mb-5 flex items-center gap-2">
-              <span className="text-[#F0B90B]">3</span> {language === 'zh' ? '交易参数' : 'Trading Parameters'}
-            </h3>
+              <span className="text-[#F0B90B]">3</span> {t('tradingParams', language)}
+            </h3 >
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
-                    {language === 'zh' ? '保证金模式' : 'Margin Mode'}
-                  </label>
+                    {t('marginMode', language)}
+                  </label >
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -406,8 +400,8 @@ export function TraderConfigModal({
                         : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
                         }`}
                     >
-                      {language === 'zh' ? '全仓' : 'Cross'}
-                    </button>
+                      {t('crossMargin', language)}
+                    </button >
                     <button
                       type="button"
                       onClick={() =>
@@ -418,10 +412,10 @@ export function TraderConfigModal({
                         : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
                         }`}
                     >
-                      {language === 'zh' ? '逐仓' : 'Isolated'}
-                    </button>
-                  </div>
-                </div>
+                      {t('isolatedMargin', language)}
+                    </button >
+                  </div >
+                </div >
                 <div>
                   <label className="text-sm text-[#EAECEF] block mb-2">
                     {t('aiScanInterval', language)}
@@ -445,13 +439,13 @@ export function TraderConfigModal({
                     {t('scanIntervalRecommend', language)}
                   </p>
                 </div>
-              </div>
+              </div >
 
               {/* Competition visibility */}
-              <div>
+              < div >
                 <label className="text-sm text-[#EAECEF] block mb-2">
-                  {language === 'zh' ? '竞技场显示' : 'Arena Visibility'}
-                </label>
+                  {t('competitionDisplay', language)}
+                </label >
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -461,8 +455,8 @@ export function TraderConfigModal({
                       : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
                       }`}
                   >
-                    {language === 'zh' ? '显示' : 'Show'}
-                  </button>
+                    {t('show', language)}
+                  </button >
                   <button
                     type="button"
                     onClick={() => handleInputChange('show_in_competition', false)}
@@ -471,95 +465,93 @@ export function TraderConfigModal({
                       : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
                       }`}
                   >
-                    {language === 'zh' ? '隐藏' : 'Hide'}
+                    {t('hide', language)}
                   </button>
                 </div>
                 <p className="text-xs text-[#848E9C] mt-1">
-                  {language === 'zh' ? '隐藏后将不在竞技场页面显示此交易员' : 'When hidden, this trader will not appear in the Arena'}
+                  {t('hiddenInCompetition', language)}
                 </p>
-              </div>
+              </div >
 
               {/* Initial Balance (Edit mode only) */}
-              {isEditMode && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm text-[#EAECEF]">
-                      {language === 'zh' ? '初始余额 ($)' : 'Initial Balance ($)'}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleFetchCurrentBalance}
-                      disabled={isFetchingBalance}
-                      className="px-3 py-1 text-xs bg-[#F0B90B] text-black rounded hover:bg-[#E1A706] transition-colors disabled:bg-[#848E9C] disabled:cursor-not-allowed"
-                    >
-                      {isFetchingBalance
-                        ? (language === 'zh' ? '获取中...' : 'Fetching...')
-                        : (language === 'zh' ? '获取当前余额' : 'Get Current Balance')}
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    value={formData.initial_balance || 0}
-                    onChange={(e) =>
-                      handleInputChange(
-                        'initial_balance',
-                        Number(e.target.value)
-                      )
-                    }
-                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
-                    min="100"
-                    step="0.01"
-                  />
-                  <p className="text-xs text-[#848E9C] mt-1">
-                    {language === 'zh'
-                      ? '用于手动更新初始余额基准（例如充值/提现后）'
-                      : 'Use to manually update initial balance (e.g., after deposit/withdrawal)'}
-                  </p>
-                  {balanceFetchError && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {balanceFetchError}
+              {
+                isEditMode && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-[#EAECEF]">
+                        {t('initialBalanceLabel', language)}
+                      </label >
+                      <button
+                        type="button"
+                        onClick={handleFetchCurrentBalance}
+                        disabled={isFetchingBalance}
+                        className="px-3 py-1 text-xs bg-[#F0B90B] text-black rounded hover:bg-[#E1A706] transition-colors disabled:bg-[#848E9C] disabled:cursor-not-allowed"
+                      >
+                        {isFetchingBalance ? t('fetching', language) : t('fetchCurrentBalance', language)}
+                      </button >
+                    </div >
+                    <input
+                      type="number"
+                      value={formData.initial_balance || 0}
+                      onChange={(e) =>
+                        handleInputChange(
+                          'initial_balance',
+                          Number(e.target.value)
+                        )
+                      }
+                      className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
+                      min="100"
+                      step="0.01"
+                    />
+                    <p className="text-xs text-[#848E9C] mt-1">
+                      {t('balanceUpdateHint', language)}
                     </p>
-                  )}
-                </div>
-              )}
+                    {balanceFetchError && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {balanceFetchError}
+                      </p>
+                    )}
+                  </div>
+                )
+              }
 
               {/* Create mode info */}
-              {!isEditMode && (
-                <div className="p-3 bg-[#1E2329] border border-[#2B3139] rounded flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-4 h-4 text-[#F0B90B]"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" x2="12" y1="8" y2="12" />
-                    <line x1="12" x2="12.01" y1="16" y2="16" />
-                  </svg>
-                  <span className="text-sm text-[#848E9C]">
-                    {language === 'zh'
-                      ? '系统将自动获取您的账户净值作为初始余额'
-                      : 'System will automatically fetch your account equity as initial balance'}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+              {
+                !isEditMode && (
+                  <div className="p-3 bg-[#1E2329] border border-[#2B3139] rounded flex items-center gap-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4 text-[#F0B90B]"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" x2="12" y1="8" y2="12" />
+                      <line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                    <span className="text-sm text-[#848E9C]">
+                      {t('autoFetchBalanceInfo', language)}
+                    </span >
+                  </div >
+                )
+              }
+            </div >
+          </div >
 
-        </div>
+        </div >
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#252B35] sticky bottom-0 z-10 rounded-b-xl">
+        < div className="flex justify-end gap-3 p-6 border-t border-[#2B3139] bg-gradient-to-r from-[#1E2329] to-[#252B35] sticky bottom-0 z-10 rounded-b-xl" >
           <button
             onClick={onClose}
             className="px-6 py-3 bg-[#2B3139] text-[#EAECEF] rounded-lg hover:bg-[#404750] transition-all duration-200 border border-[#404750]"
           >
-            {language === 'zh' ? '取消' : 'Cancel'}
-          </button>
+            {t('cancel', language)}
+          </button >
           {onSave && (
             <button
               onClick={handleSave}
@@ -571,15 +563,12 @@ export function TraderConfigModal({
               }
               className="px-8 py-3 bg-gradient-to-r from-[#F0B90B] to-[#E1A706] text-black rounded-lg hover:from-[#E1A706] hover:to-[#D4951E] transition-all duration-200 disabled:bg-[#848E9C] disabled:cursor-not-allowed font-medium shadow-lg"
             >
-              {isSaving
-                ? (language === 'zh' ? '保存中...' : 'Saving...')
-                : isEditMode
-                  ? (language === 'zh' ? '保存修改' : 'Save Changes')
-                  : (language === 'zh' ? '创建交易员' : 'Create Trader')}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+              {isSaving ? t('saving', language) : isEditMode ? t('editTrader', language) : t('createTraderButton', language)}
+            </button >
+          )
+          }
+        </div >
+      </div >
+    </div >
   )
 }
