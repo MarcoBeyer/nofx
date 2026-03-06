@@ -107,3 +107,7 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+// Local patch: bounds check fix for spot token index out of range panic
+// See patches/go-hyperliquid/info.go line 111
+replace github.com/sonirico/go-hyperliquid => ./patches/go-hyperliquid

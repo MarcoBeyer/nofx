@@ -1,0 +1,340 @@
+package hyperliquid
+
+//go:generate easyjson -all
+
+// Action structs with deterministic field ordering for consistent MessagePack serialization
+// The order of fields in these structs is critical for signature generation
+
+// CancelOrderWire represents cancel order item wire format
+type CancelOrderWire struct {
+	Asset   int   `json:"a" msgpack:"a"`
+	OrderID int64 `json:"o" msgpack:"o"`
+}
+
+// CancelAction represents the cancel action
+type CancelAction struct {
+	Type    string            `json:"type"          msgpack:"type"`
+	Dex     string            `json:"dex,omitempty" msgpack:"dex,omitempty"`
+	Cancels []CancelOrderWire `json:"cancels"       msgpack:"cancels"`
+}
+
+// CancelByCloidWire represents cancel by cloid item wire format
+// NB: the CancelByCloidWire MUST have `asset` and not `o` like
+// CancelOrderWire has
+// See: https://github.com/hyperliquid-dex/hyperliquid-python-sdk/blob/f19056ca1b65cc15a019d92dffa9ada887b3d808/hyperliquid/exchange.py#L305-L310
+type CancelByCloidWire struct {
+	Asset    int    `json:"asset" msgpack:"asset"`
+	ClientID string `json:"cloid" msgpack:"cloid"`
+}
+
+// CancelByCloidAction represents the cancel by cloid action
+type CancelByCloidAction struct {
+	Type    string              `json:"type"          msgpack:"type"`
+	Dex     string              `json:"dex,omitempty" msgpack:"dex,omitempty"`
+	Cancels []CancelByCloidWire `json:"cancels"       msgpack:"cancels"`
+}
+
+// UsdClassTransferAction represents USD class transfer
+type UsdClassTransferAction struct {
+	Type   string `json:"type"   msgpack:"type"`
+	Amount string `json:"amount" msgpack:"amount"`
+	ToPerp bool   `json:"toPerp" msgpack:"toPerp"`
+	Nonce  int64  `json:"nonce"  msgpack:"nonce"`
+}
+
+// SpotTransferAction represents spot transfer
+type SpotTransferAction struct {
+	Type        string `json:"type"        msgpack:"type"`
+	Destination string `json:"destination" msgpack:"destination"`
+	Amount      string `json:"amount"      msgpack:"amount"`
+	Token       string `json:"token"       msgpack:"token"`
+	Time        int64  `json:"time"        msgpack:"time"`
+}
+
+// UsdTransferAction represents USD transfer
+type UsdTransferAction struct {
+	Type        string `json:"type"        msgpack:"type"`
+	Destination string `json:"destination" msgpack:"destination"`
+	Amount      string `json:"amount"      msgpack:"amount"`
+	Time        int64  `json:"time"        msgpack:"time"`
+}
+
+// SubAccountTransferAction represents sub-account transfer
+type SubAccountTransferAction struct {
+	Type           string `json:"type"           msgpack:"type"`
+	SubAccountUser string `json:"subAccountUser" msgpack:"subAccountUser"`
+	IsDeposit      bool   `json:"isDeposit"      msgpack:"isDeposit"`
+	Usd            int    `json:"usd"            msgpack:"usd"`
+}
+
+// VaultUsdTransferAction represents vault USD transfer
+type VaultUsdTransferAction struct {
+	Type         string `json:"type"         msgpack:"type"`
+	VaultAddress string `json:"vaultAddress" msgpack:"vaultAddress"`
+	IsDeposit    bool   `json:"isDeposit"    msgpack:"isDeposit"`
+	Usd          int    `json:"usd"          msgpack:"usd"`
+}
+
+// CreateVaultAction represents create vault action
+type CreateVaultAction struct {
+	Type        string `json:"type"        msgpack:"type"`
+	Name        string `json:"name"        msgpack:"name"`
+	Description string `json:"description" msgpack:"description"`
+	InitialUsd  int    `json:"initialUsd"  msgpack:"initialUsd"`
+}
+
+// VaultModifyAction represents vault modify action
+type VaultModifyAction struct {
+	Type                  string `json:"type"                  msgpack:"type"`
+	VaultAddress          string `json:"vaultAddress"          msgpack:"vaultAddress"`
+	AllowDeposits         bool   `json:"allowDeposits"         msgpack:"allowDeposits"`
+	AlwaysCloseOnWithdraw bool   `json:"alwaysCloseOnWithdraw" msgpack:"alwaysCloseOnWithdraw"`
+}
+
+// VaultDistributeAction represents vault distribute action
+type VaultDistributeAction struct {
+	Type         string `json:"type"         msgpack:"type"`
+	VaultAddress string `json:"vaultAddress" msgpack:"vaultAddress"`
+	Usd          int    `json:"usd"          msgpack:"usd"`
+}
+
+// UpdateLeverageAction represents leverage update
+type UpdateLeverageAction struct {
+	Type     string `json:"type"     msgpack:"type"`
+	Asset    int    `json:"asset"    msgpack:"asset"`
+	IsCross  bool   `json:"isCross"  msgpack:"isCross"`
+	Leverage int    `json:"leverage" msgpack:"leverage"`
+}
+
+// UpdateIsolatedMarginAction represents isolated margin update
+type UpdateIsolatedMarginAction struct {
+	Type  string  `json:"type"  msgpack:"type"`
+	Asset int     `json:"asset" msgpack:"asset"`
+	IsBuy bool    `json:"isBuy" msgpack:"isBuy"`
+	Ntli  float64 `json:"ntli"  msgpack:"ntli"`
+}
+
+// OrderWire represents the wire format for orders with deterministic field ordering
+// CRITICAL: Field order MUST exactly match Python SDK insertion order: a, b, p, s, r, t, c
+// See hyperliquid-python-sdk/hyperliquid/utils/signing.py:order_request_to_order_wire
+type OrderWire struct {
+	Asset      int           `json:"a"           msgpack:"a"`           // 1st
+	IsBuy      bool          `json:"b"           msgpack:"b"`           // 2nd
+	LimitPx    string        `json:"p"           msgpack:"p"`           // 3rd
+	Size       string        `json:"s"           msgpack:"s"`           // 4th
+	ReduceOnly bool          `json:"r"           msgpack:"r"`           // 5th
+	OrderType  OrderWireType `json:"t"           msgpack:"t"`           // 6th
+	Cloid      *string       `json:"c,omitempty" msgpack:"c,omitempty"` // 7th (optional)
+}
+
+// OrderWireType represents the type of order (limit or trigger).
+type OrderWireType struct {
+	Limit   *OrderWireTypeLimit   `json:"limit,omitempty"   msgpack:"limit,omitempty"`
+	Trigger *OrderWireTypeTrigger `json:"trigger,omitempty" msgpack:"trigger,omitempty"`
+}
+
+// OrderWireTypeLimit represents a limit order with time-in-force.
+type OrderWireTypeLimit struct {
+	Tif Tif `json:"tif,string" msgpack:"tif"`
+}
+
+// OrderWireTypeTrigger represents a trigger order (stop-loss/take-profit).
+type OrderWireTypeTrigger struct {
+	// CRITICAL: Field order MUST match Python SDK insertion order: isMarket, triggerPx, tpsl
+	// See hyperliquid-python-sdk/hyperliquid/utils/signing.py:order_type_to_wire (lines 151-154)
+	IsMarket  bool   `json:"isMarket"  msgpack:"isMarket"`  // 1st
+	TriggerPx string `json:"triggerPx" msgpack:"triggerPx"` // 2nd - Must be string for msgpack serialization
+	Tpsl      Tpsl   `json:"tpsl"      msgpack:"tpsl"`      // 3rd - "tp" or "sl"
+}
+
+// OrderAction represents the order action with deterministic field ordering
+// CRITICAL: Field order MUST match Python SDK insertion order for msgpack hash consistency
+type OrderAction struct {
+	Type     string       `json:"type"              msgpack:"type"`
+	Dex      string       `json:"dex,omitempty"     msgpack:"dex,omitempty"`
+	Orders   []OrderWire  `json:"orders"            msgpack:"orders"`
+	Grouping string       `json:"grouping"          msgpack:"grouping"`
+	Builder  *BuilderInfo `json:"builder,omitempty" msgpack:"builder,omitempty"`
+}
+
+// ModifyAction represents a single order modification
+type ModifyAction struct {
+	Type  string    `json:"type,omitempty" msgpack:"type,omitempty"`
+	Dex   string    `json:"dex,omitempty"  msgpack:"dex,omitempty"`
+	Oid   any       `json:"oid"            msgpack:"oid"`
+	Order OrderWire `json:"order"          msgpack:"order"`
+}
+
+// BatchModifyAction represents multiple order modifications
+type BatchModifyAction struct {
+	Type     string         `json:"type"          msgpack:"type"`
+	Dex      string         `json:"dex,omitempty" msgpack:"dex,omitempty"`
+	Modifies []ModifyAction `json:"modifies"      msgpack:"modifies"`
+}
+
+// PerpDexClassTransferAction represents perp dex class transfer
+type PerpDexClassTransferAction struct {
+	Type   string  `json:"type"   msgpack:"type"`
+	Dex    string  `json:"dex"    msgpack:"dex"`
+	Token  string  `json:"token"  msgpack:"token"`
+	Amount float64 `json:"amount" msgpack:"amount"`
+	ToPerp bool    `json:"toPerp" msgpack:"toPerp"`
+}
+
+// SubAccountSpotTransferAction represents sub-account spot transfer
+type SubAccountSpotTransferAction struct {
+	Type           string  `json:"type"           msgpack:"type"`
+	SubAccountUser string  `json:"subAccountUser" msgpack:"subAccountUser"`
+	IsDeposit      bool    `json:"isDeposit"      msgpack:"isDeposit"`
+	Token          string  `json:"token"          msgpack:"token"`
+	Amount         float64 `json:"amount"         msgpack:"amount"`
+}
+
+// ScheduleCancelAction represents schedule cancel action
+type ScheduleCancelAction struct {
+	Type string `json:"type"           msgpack:"type"`
+	Time *int64 `json:"time,omitempty" msgpack:"time,omitempty"`
+}
+
+// SetReferrerAction represents set referrer action
+type SetReferrerAction struct {
+	Type string `json:"type" msgpack:"type"`
+	Code string `json:"code" msgpack:"code"`
+}
+
+// ReserveRequestWeightAction reserves request weight capacity
+// Weight reservation costs 0.0005 USDC per weight unit
+type ReserveRequestWeightAction struct {
+	Type   string `json:"type"   msgpack:"type"`
+	Weight int    `json:"weight" msgpack:"weight"`
+}
+
+// CreateSubAccountAction represents create sub-account action
+type CreateSubAccountAction struct {
+	Type string `json:"type" msgpack:"type"`
+	Name string `json:"name" msgpack:"name"`
+}
+
+// UseBigBlocksAction represents use big blocks action
+type UseBigBlocksAction struct {
+	Type           string `json:"type"           msgpack:"type"`
+	UsingBigBlocks bool   `json:"usingBigBlocks" msgpack:"usingBigBlocks"`
+}
+
+// TokenDelegateAction represents token delegate action
+type TokenDelegateAction struct {
+	Type         string `json:"type"         msgpack:"type"`
+	Validator    string `json:"validator"    msgpack:"validator"`
+	Wei          int    `json:"wei"          msgpack:"wei"`
+	IsUndelegate bool   `json:"isUndelegate" msgpack:"isUndelegate"`
+	Nonce        int64  `json:"nonce"        msgpack:"nonce"`
+}
+
+// WithdrawFromBridgeAction represents withdraw from bridge action
+type WithdrawFromBridgeAction struct {
+	Type        string `json:"type"        msgpack:"type"`
+	Destination string `json:"destination" msgpack:"destination"`
+	Amount      string `json:"amount"      msgpack:"amount"`
+	Time        int64  `json:"time"        msgpack:"time"`
+}
+
+// ApproveAgentAction represents approve agent action
+type ApproveAgentAction struct {
+	Type             string  `json:"type"                msgpack:"type"`
+	SignatureChainId string  `json:"signatureChainId"    msgpack:"signatureChainId"`
+	HyperliquidChain string  `json:"hyperliquidChain"    msgpack:"hyperliquidChain"`
+	AgentAddress     string  `json:"agentAddress"        msgpack:"agentAddress"`
+	AgentName        *string `json:"agentName,omitempty" msgpack:"agentName,omitempty"`
+	Nonce            int64   `json:"nonce"               msgpack:"nonce"`
+}
+
+// ApproveBuilderFeeAction represents approve builder fee action
+type ApproveBuilderFeeAction struct {
+	Type       string `json:"type"       msgpack:"type"`
+	Builder    string `json:"builder"    msgpack:"builder"`
+	MaxFeeRate string `json:"maxFeeRate" msgpack:"maxFeeRate"`
+	Nonce      int64  `json:"nonce"      msgpack:"nonce"`
+}
+
+// ConvertToMultiSigUserAction represents convert to multi-sig user action
+type ConvertToMultiSigUserAction struct {
+	Type    string `json:"type"    msgpack:"type"`
+	Signers string `json:"signers" msgpack:"signers"`
+	Nonce   int64  `json:"nonce"   msgpack:"nonce"`
+}
+
+// MultiSigAction represents multi-signature action
+type MultiSigAction struct {
+	Type       string         `json:"type"       msgpack:"type"`
+	Action     map[string]any `json:"action"     msgpack:"action"`
+	Signers    []string       `json:"signers"    msgpack:"signers"`
+	Signatures []string       `json:"signatures" msgpack:"signatures"`
+}
+
+type RegisterAssetSchema struct {
+	FullName        string  `json:"fullName"        msgpack:"fullName"`
+	CollateralToken int     `json:"collateralToken" msgpack:"collateralToken"`
+	OracleUpdater   *string `json:"oracleUpdater"   msgpack:"oracleUpdater"`
+}
+
+type AssetRequest struct {
+	Coin          string `json:"coin"          msgpack:"coin"`
+	SzDecimals    int    `json:"szDecimals"    msgpack:"szDecimals"`
+	OraclePx      string `json:"oraclePx"      msgpack:"oraclePx"`
+	MarginTableID int    `json:"marginTableId" msgpack:"marginTableId"`
+	OnlyIsolated  bool   `json:"onlyIsolated"  msgpack:"onlyIsolated"`
+}
+
+type AssetRequest2 struct {
+	Coin          string `json:"coin"          msgpack:"coin"`
+	SzDecimals    int    `json:"szDecimals"    msgpack:"szDecimals"`
+	OraclePx      string `json:"oraclePx"      msgpack:"oraclePx"`
+	MarginTableID int    `json:"marginTableId" msgpack:"marginTableId"`
+	MarginMode    string `json:"marginMode"    msgpack:"marginMode"`
+}
+
+type RegisterAsset struct {
+	MaxGas       *int                 `json:"maxGas"       msgpack:"maxGas"`
+	AssetRequest AssetRequest         `json:"assetRequest" msgpack:"assetRequest"`
+	Dex          string               `json:"dex"          msgpack:"dex"`
+	Schema       *RegisterAssetSchema `json:"schema"       msgpack:"schema"`
+}
+
+type RegisterAsset2 struct {
+	MaxGas       *int                 `json:"maxGas"       msgpack:"maxGas"`
+	AssetRequest AssetRequest2        `json:"assetRequest" msgpack:"assetRequest"`
+	Dex          string               `json:"dex"          msgpack:"dex"`
+	Schema       *RegisterAssetSchema `json:"schema"       msgpack:"schema"`
+}
+
+type PerpDeployRegisterAssetAction struct {
+	Type          string        `json:"type"          msgpack:"type"`
+	RegisterAsset RegisterAsset `json:"registerAsset" msgpack:"registerAsset"`
+}
+
+type PerpDeployRegisterAsset2Action struct {
+	Type           string         `json:"type"           msgpack:"type"`
+	RegisterAsset2 RegisterAsset2 `json:"registerAsset2" msgpack:"registerAsset2"`
+}
+
+type HaltTrading struct {
+	Coin     string `json:"coin"     msgpack:"coin"`
+	IsHalted bool   `json:"isHalted" msgpack:"isHalted"`
+}
+
+type PerpDeployHaltTradingAction struct {
+	Type        string      `json:"type"        msgpack:"type"`
+	HaltTrading HaltTrading `json:"haltTrading" msgpack:"haltTrading"`
+}
+
+type SetOracle struct {
+	Dex             string       `json:"dex"             msgpack:"dex"`
+	OraclePxs       [][]string   `json:"oraclePxs"       msgpack:"oraclePxs"`
+	MarkPxs         [][][]string `json:"markPxs"         msgpack:"markPxs"`
+	ExternalPerpPxs [][]string   `json:"externalPerpPxs" msgpack:"externalPerpPxs"`
+}
+
+type PerpDeploySetOracleAction struct {
+	Type      string    `json:"type"      msgpack:"type"`
+	SetOracle SetOracle `json:"setOracle" msgpack:"setOracle"`
+}

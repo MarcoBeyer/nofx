@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Install tools
+      run: go install github.com/mailru/easyjson/...@latest
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Check formatting
+      run: |
+        UNFORMATTED=$(find . -name "*.go" -not -name "*_easyjson.go" -not -path "./examples/*" | xargs gofmt -s -l)
+        if [ -n "$UNFORMATTED" ]; then
+          echo "The following files are not formatted:"
+          echo "$UNFORMATTED"
+          exit 1
+        fi
+
+    - name: Check generated files
+      run: |
+        go generate ./...
+        CHANGES=$(git status --porcelain | grep "_easyjson.go$" || true)
+        if [ -n "$CHANGES" ]; then
+          echo "Generated easyjson files are not up to date. Please run 'go generate ./...' and commit the changes."
+          echo "Files with changes:"
+          echo "$CHANGES"
+          exit 1
+        fi
+
+    - name: Run tests (excluding examples)
+      run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v examples)
+
+    - name: Upload coverage to Coveralls
+      if: matrix.go-version == '1.25'
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        file: coverage.out
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+
+    - name: Run Gosec Security Scanner
+      run: go install github.com/securego/gosec/v2/cmd/gosec@latest && gosec -exclude-dir=examples ./...
