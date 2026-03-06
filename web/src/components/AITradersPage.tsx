@@ -91,6 +91,11 @@ const AI_PROVIDER_CONFIG: Record<string, {
     apiUrl: 'https://console.x.ai/',
     apiName: 'xAI',
   },
+  grok4: {
+    defaultModel: 'grok-4.20-multi-agent-experimental-beta-0304',
+    apiUrl: 'https://console.x.ai/',
+    apiName: 'xAI',
+  },
   kimi: {
     defaultModel: 'moonshot-v1-auto',
     apiUrl: 'https://platform.moonshot.ai/console/api-keys',

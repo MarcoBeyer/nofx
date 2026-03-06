@@ -1711,6 +1711,7 @@ func (s *Server) handleGetModelConfigs(c *gin.Context) {
 			{ID: "claude", Name: "Claude AI", Provider: "claude", Enabled: false},
 			{ID: "gemini", Name: "Gemini AI", Provider: "gemini", Enabled: false},
 			{ID: "grok", Name: "Grok AI", Provider: "grok", Enabled: false},
+			{ID: "grok4", Name: "Grok 4.20 Multi-Agent", Provider: "grok4", Enabled: false},
 			{ID: "kimi", Name: "Kimi AI", Provider: "kimi", Enabled: false},
 		}
 		c.JSON(http.StatusOK, defaultModels)
@@ -3295,6 +3296,7 @@ func (s *Server) handleGetSupportedModels(c *gin.Context) {
 		{"id": "claude", "name": "Claude", "provider": "claude", "defaultModel": "claude-opus-4-6"},
 		{"id": "gemini", "name": "Google Gemini", "provider": "gemini", "defaultModel": "gemini-3-pro-preview"},
 		{"id": "grok", "name": "Grok (xAI)", "provider": "grok", "defaultModel": "grok-3-latest"},
+		{"id": "grok4", "name": "Grok 4.20 Multi-Agent (xAI)", "provider": "grok4", "defaultModel": "grok-4.20-multi-agent-experimental-beta-0304"},
 		{"id": "kimi", "name": "Kimi (Moonshot)", "provider": "kimi", "defaultModel": "moonshot-v1-auto"},
 	}
 

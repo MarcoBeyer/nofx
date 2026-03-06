@@ -12,6 +12,7 @@ const MODEL_COLORS: Record<string, string> = {
   kimi: '#6366F1',
   gemini: '#4285F4',
   grok: '#000000',
+  grok4: '#000000',
   openai: '#10A37F',
 }
 
@@ -39,6 +40,7 @@ export const getModelIcon = (modelType: string, props: IconProps = {}) => {
       iconPath = '/icons/gemini.svg'
       break
     case 'grok':
+    case 'grok4':
       iconPath = '/icons/grok.svg'
       break
     case 'openai':

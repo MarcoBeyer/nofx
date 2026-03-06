@@ -104,6 +104,7 @@ function AIAvatar({ name, size = 24 }: { name: string; size?: number }) {
     deepseek: { bg: 'bg-blue-600', text: 'text-white', letter: 'D' },
     gemini: { bg: 'bg-blue-400', text: 'text-white', letter: 'G' },
     grok: { bg: 'bg-gray-700', text: 'text-white', letter: 'X' },
+    grok4: { bg: 'bg-gray-700', text: 'text-white', letter: 'X' },
     kimi: { bg: 'bg-purple-500', text: 'text-white', letter: 'K' },
     qwen: { bg: 'bg-indigo-500', text: 'text-white', letter: 'Q' },
     openai: { bg: 'bg-emerald-600', text: 'text-white', letter: 'O' },

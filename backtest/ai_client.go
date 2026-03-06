@@ -64,6 +64,13 @@ func configureMCPClient(cfg BacktestConfig, base mcp.AIClient) (mcp.AIClient, er
 		grokC := mcp.NewGrokClientWithOptions()
 		grokC.(*mcp.GrokClient).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
 		return grokC, nil
+	case "grok4":
+		if cfg.AICfg.APIKey == "" {
+			return nil, fmt.Errorf("grok4 provider requires api key")
+		}
+		grok4C := mcp.NewGrok4ClientWithOptions()
+		grok4C.(*mcp.Grok4Client).SetAPIKey(cfg.AICfg.APIKey, cfg.AICfg.BaseURL, cfg.AICfg.Model)
+		return grok4C, nil
 	case "openai":
 		if cfg.AICfg.APIKey == "" {
 			return nil, fmt.Errorf("openai provider requires api key")
@@ -116,6 +123,11 @@ func cloneBaseClient(base mcp.AIClient) *mcp.Client {
 			return &cp
 		}
 	case *mcp.GrokClient:
+		if c != nil && c.Client != nil {
+			cp := *c.Client
+			return &cp
+		}
+	case *mcp.Grok4Client:
 		if c != nil && c.Client != nil {
 			cp := *c.Client
 			return &cp
