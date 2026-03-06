@@ -337,8 +337,8 @@ export function TraderConfigModal({
                   {strategies.map((strategy) => (
                     <option key={strategy.id} value={strategy.id}>
                       {strategy.name}
-                      {strategy.is_active ? t('active', language) : ''}
-                      {strategy.is_default ? t('default', language) : ''}
+                      {strategy.is_active ? t('activeStrategy', language) : ''}
+                      {strategy.is_default ? t('defaultStrategy', language) : ''}
                     </option>
                   ))}
                 </select>
