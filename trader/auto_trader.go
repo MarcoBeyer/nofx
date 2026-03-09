@@ -638,6 +638,53 @@ func (at *AutoTrader) runCycle() error {
 	logger.Infof("📊 Account equity: %.2f USDT | Available: %.2f USDT | Positions: %d",
 		ctx.Account.TotalEquity, ctx.Account.AvailableBalance, ctx.Account.PositionCount)
 
+	// --- [PRE-TRADE SAFEGUARDS] ---
+	// Run these BEFORE calling the AI to save on API costs if trading is not currently permitted
+
+	// Check market hours
+	if err := at.enforceMarketHours(); err != nil {
+		logger.Infof("⏸ Skipping AI call: %v", err)
+		record.Success = false
+		record.ErrorMessage = err.Error()
+		at.saveDecision(record)
+		return nil
+	}
+
+	// Check trade cooldown
+	if err := at.enforceTradeCooldown(); err != nil {
+		logger.Infof("⏸ Skipping AI call: %v", err)
+		record.Success = false
+		record.ErrorMessage = err.Error()
+		at.saveDecision(record)
+		return nil
+	}
+
+	// Check daily trade limit
+	if err := at.enforceDailyTradeLimit(); err != nil {
+		logger.Infof("⏸ Skipping AI call: %v", err)
+		record.Success = false
+		record.ErrorMessage = err.Error()
+		at.saveDecision(record)
+		return nil
+	}
+
+	// Check max positions limit
+	if err := at.enforceMaxPositions(ctx.Account.PositionCount); err != nil {
+		// We can still call AI to manage existing positions (close them),
+		// but we should set a flag in the context so the PromptBuilder tells the AI
+		// not to open new positions. For now, since most strategies just generate trades,
+		// we skip the AI call entirely to save costs unless we have open positions to monitor.
+		if ctx.Account.PositionCount == 0 {
+			logger.Infof("⏸ Skipping AI call: %v", err)
+			record.Success = false
+			record.ErrorMessage = err.Error()
+			at.saveDecision(record)
+			return nil
+		}
+		// If we have positions, we let the AI run so it can potentially CLOSE them,
+		// but the `executeOpen*WithRecord` checks will block new ones anyway.
+	}
+
 	// 5. Use strategy engine to call AI for decision
 	logger.Infof("🤖 Requesting AI analysis and decision... [Strategy Engine]")
 	aiDecision, err := kernel.GetFullDecisionWithStrategy(ctx, at.mcpClient, at.strategyEngine, "balanced")
