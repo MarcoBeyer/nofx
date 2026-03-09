@@ -2571,21 +2571,6 @@ func validateDecision(d *Decision, accountEquity float64, btcEthLeverage, altcoi
 				riskRewardRatio, riskPercent, rewardPercent, d.StopLoss, d.TakeProfit)
 		}
 
-		// === Trade Safeguard: Min SL distance ===
-		if minSLDistPct <= 0 {
-			minSLDistPct = 2.0
-		}
-		var slDistPct float64
-		if d.Action == "open_long" {
-			slDistPct = (entryPrice - d.StopLoss) / entryPrice * 100
-		} else {
-			slDistPct = (d.StopLoss - entryPrice) / entryPrice * 100
-		}
-		if slDistPct < minSLDistPct {
-			return fmt.Errorf("❌ [TRADE SAFEGUARD] stop loss too tight (%.2f%% from entry, min %.1f%%) [SL: %.4f, est. entry: %.4f]",
-				slDistPct, minSLDistPct, d.StopLoss, entryPrice)
-		}
-
 		// === Trade Safeguard: TP direction + min distance ===
 		if minTPDistPct <= 0 {
 			minTPDistPct = 1.0
