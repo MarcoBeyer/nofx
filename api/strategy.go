@@ -8,6 +8,8 @@ import (
 	"nofx/logger"
 	"nofx/market"
 	"nofx/mcp"
+	_ "nofx/mcp/payment"
+	_ "nofx/mcp/provider"
 	"nofx/store"
 	"time"
 
@@ -27,6 +29,20 @@ func validateStrategyConfig(config *store.StrategyConfig) []string {
 	}
 
 	return warnings
+}
+
+// handleEstimateTokens estimates token usage for a strategy config (no auth required, pure computation)
+func (s *Server) handleEstimateTokens(c *gin.Context) {
+	var req struct {
+		Config store.StrategyConfig `json:"config" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		SafeBadRequest(c, "Invalid request parameters")
+		return
+	}
+
+	estimate := req.Config.EstimateTokens()
+	c.JSON(http.StatusOK, estimate)
 }
 
 // handlePublicStrategies Get public strategies for strategy market (no auth required)
@@ -136,7 +152,8 @@ func (s *Server) handleGetStrategy(c *gin.Context) {
 	})
 }
 
-// handleCreateStrategy Create strategy
+// handleCreateStrategy Create strategy.
+// If "config" is omitted from the request body, the system default config is used automatically.
 func (s *Server) handleCreateStrategy(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -145,14 +162,25 @@ func (s *Server) handleCreateStrategy(c *gin.Context) {
 	}
 
 	var req struct {
-		Name        string               `json:"name" binding:"required"`
-		Description string               `json:"description"`
-		Config      store.StrategyConfig `json:"config" binding:"required"`
+		Name        string                `json:"name" binding:"required"`
+		Description string                `json:"description"`
+		Lang        string                `json:"lang"`   // "zh" or "en", used when config is omitted
+		Config      *store.StrategyConfig `json:"config"` // optional — uses default if omitted
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		SafeBadRequest(c, "Invalid request parameters")
 		return
+	}
+
+	// Use default config when none provided
+	if req.Config == nil {
+		lang := req.Lang
+		if lang == "" {
+			lang = "zh"
+		}
+		defaultCfg := store.GetDefaultStrategyConfig(lang)
+		req.Config = &defaultCfg
 	}
 
 	// Serialize configuration
@@ -178,7 +206,7 @@ func (s *Server) handleCreateStrategy(c *gin.Context) {
 	}
 
 	// Validate configuration and collect warnings
-	warnings := validateStrategyConfig(&req.Config)
+	warnings := validateStrategyConfig(req.Config)
 
 	response := gin.H{
 		"id":      strategy.ID,
@@ -191,7 +219,10 @@ func (s *Server) handleCreateStrategy(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// handleUpdateStrategy Update strategy
+// handleUpdateStrategy Update strategy.
+// The incoming config is merged with the existing one: top-level sections present in the
+// request overwrite the corresponding existing sections; absent sections are preserved.
+// This prevents partial updates from zeroing out unmentioned fields.
 func (s *Server) handleUpdateStrategy(c *gin.Context) {
 	userID := c.GetString("user_id")
 	strategyID := c.Param("id")
@@ -213,11 +244,11 @@ func (s *Server) handleUpdateStrategy(c *gin.Context) {
 	}
 
 	var req struct {
-		Name          string               `json:"name"`
-		Description   string               `json:"description"`
-		Config        store.StrategyConfig `json:"config"`
-		IsPublic      bool                 `json:"is_public"`
-		ConfigVisible bool                 `json:"config_visible"`
+		Name          string          `json:"name"`
+		Description   string          `json:"description"`
+		Config        json.RawMessage `json:"config"` // raw JSON so we can merge
+		IsPublic      bool            `json:"is_public"`
+		ConfigVisible bool            `json:"config_visible"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -225,8 +256,33 @@ func (s *Server) handleUpdateStrategy(c *gin.Context) {
 		return
 	}
 
-	// Serialize configuration
-	configJSON, err := json.Marshal(req.Config)
+	// Start with the existing config as base — preserves all unmentioned fields.
+	var mergedConfig store.StrategyConfig
+	if err := json.Unmarshal([]byte(existing.Config), &mergedConfig); err != nil {
+		// If existing config is corrupt, start from zero
+		mergedConfig = store.StrategyConfig{}
+	}
+
+	// Apply incoming config on top: top-level sections present in the request overwrite
+	// their corresponding existing section; absent sections remain unchanged.
+	if len(req.Config) > 0 && string(req.Config) != "null" {
+		if err := json.Unmarshal(req.Config, &mergedConfig); err != nil {
+			SafeBadRequest(c, "Invalid config JSON")
+			return
+		}
+	}
+
+	// Preserve existing name/description when not supplied
+	name := req.Name
+	if name == "" {
+		name = existing.Name
+	}
+	description := req.Description
+	if description == "" {
+		description = existing.Description
+	}
+
+	configJSON, err := json.Marshal(mergedConfig)
 	if err != nil {
 		SafeInternalError(c, "Serialize configuration", err)
 		return
@@ -235,8 +291,8 @@ func (s *Server) handleUpdateStrategy(c *gin.Context) {
 	strategy := &store.Strategy{
 		ID:            strategyID,
 		UserID:        userID,
-		Name:          req.Name,
-		Description:   req.Description,
+		Name:          name,
+		Description:   description,
 		Config:        string(configJSON),
 		IsPublic:      req.IsPublic,
 		ConfigVisible: req.ConfigVisible,
@@ -247,8 +303,27 @@ func (s *Server) handleUpdateStrategy(c *gin.Context) {
 		return
 	}
 
-	// Validate configuration and collect warnings
-	warnings := validateStrategyConfig(&req.Config)
+	// Token overflow check — block save if all models exceed context limits
+	if mergedConfig.StrategyType == "" || mergedConfig.StrategyType == "ai_trading" {
+		estimate := mergedConfig.EstimateTokens()
+		allExceed := true
+		for _, ml := range estimate.ModelLimits {
+			if ml.UsagePct <= 100 {
+				allExceed = false
+				break
+			}
+		}
+		if allExceed && len(estimate.ModelLimits) > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":          fmt.Sprintf("Estimated %d tokens exceeds all known model context limits. Reduce coins, timeframes, or K-line count.", estimate.Total),
+				"token_estimate": estimate,
+			})
+			return
+		}
+	}
+
+	// Validate merged configuration and collect warnings
+	warnings := validateStrategyConfig(&mergedConfig)
 
 	response := gin.H{"message": "Strategy updated successfully"}
 	if len(warnings) > 0 {
@@ -269,7 +344,7 @@ func (s *Server) handleDeleteStrategy(c *gin.Context) {
 	}
 
 	if err := s.store.Strategy().Delete(userID, strategyID); err != nil {
-		SafeInternalError(c, "Failed to delete strategy", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": SanitizeError(err, "Failed to delete strategy")})
 		return
 	}
 
@@ -441,8 +516,17 @@ func (s *Server) handleStrategyTestRun(c *gin.Context) {
 		req.PromptVariant = "balanced"
 	}
 
+	claw402WalletKey, err := s.resolveStrategyDataWalletKey(userID, req.AIModelID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":       err.Error(),
+			"ai_response": "",
+		})
+		return
+	}
+
 	// Create strategy engine to build prompt
-	engine := kernel.NewStrategyEngine(&req.Config)
+	engine := kernel.NewStrategyEngine(&req.Config, claw402WalletKey)
 
 	// Get candidate coins
 	candidates, err := engine.GetCandidateCoins()
@@ -597,40 +681,20 @@ func (s *Server) runRealAITest(userID, modelID, systemPrompt, userPrompt string)
 		return "", fmt.Errorf("AI model %s is missing API Key", model.Name)
 	}
 
-	// Create AI client
-	var aiClient mcp.AIClient
+	// Create AI client via registry
 	provider := model.Provider
-
-	// Convert EncryptedString to string for API key
 	apiKey := string(model.APIKey)
-	switch provider {
-	case "qwen":
-		aiClient = mcp.NewQwenClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "deepseek":
-		aiClient = mcp.NewDeepSeekClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "claude":
-		aiClient = mcp.NewClaudeClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "kimi":
-		aiClient = mcp.NewKimiClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "gemini":
-		aiClient = mcp.NewGeminiClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "grok":
-		aiClient = mcp.NewGrokClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "grok4":
-		aiClient = mcp.NewGrok4Client()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	case "openai":
-		aiClient = mcp.NewOpenAIClient()
-		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
-	default:
-		// Use generic client
+
+	aiClient := mcp.NewAIClientByProvider(provider)
+	if aiClient == nil {
 		aiClient = mcp.NewClient()
+	}
+
+	// Payment providers ignore custom URL
+	switch provider {
+	case "claw402":
+		aiClient.SetAPIKey(apiKey, "", model.CustomModelName)
+	default:
 		aiClient.SetAPIKey(apiKey, model.CustomAPIURL, model.CustomModelName)
 	}
 
@@ -641,4 +705,8 @@ func (s *Server) runRealAITest(userID, modelID, systemPrompt, userPrompt string)
 	}
 
 	return response, nil
+}
+
+func (s *Server) resolveStrategyDataWalletKey(userID, selectedModelID string) (string, error) {
+	return s.store.AIModel().ResolveClaw402WalletKey(userID, selectedModelID)
 }

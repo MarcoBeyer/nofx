@@ -1,5 +1,6 @@
-import { Shield, AlertTriangle, Clock } from 'lucide-react'
+import { Shield, AlertTriangle } from 'lucide-react'
 import type { RiskControlConfig } from '../../types'
+import { riskControl, ts } from '../../i18n/strategy-translations'
 
 interface RiskControlEditorProps {
   config: RiskControlConfig
@@ -14,58 +15,6 @@ export function RiskControlEditor({
   disabled,
   language,
 }: RiskControlEditorProps) {
-  const t = (key: string) => {
-    const translations: Record<string, Record<string, string>> = {
-      positionLimits: { zh: '仓位限制', en: 'Position Limits' },
-      maxPositions: { zh: '最大持仓数量', en: 'Max Positions' },
-      maxPositionsDesc: { zh: '同时持有的最大币种数量', en: 'Maximum coins held simultaneously' },
-      // Trading leverage (exchange leverage)
-      tradingLeverage: { zh: '交易杠杆（交易所杠杆）', en: 'Trading Leverage (Exchange)' },
-      btcEthLeverage: { zh: 'BTC/ETH 交易杠杆', en: 'BTC/ETH Trading Leverage' },
-      btcEthLeverageDesc: { zh: '交易所开仓使用的杠杆倍数', en: 'Exchange leverage for opening positions' },
-      altcoinLeverage: { zh: '山寨币交易杠杆', en: 'Altcoin Trading Leverage' },
-      altcoinLeverageDesc: { zh: '交易所开仓使用的杠杆倍数', en: 'Exchange leverage for opening positions' },
-      // Position value ratio (risk control) - CODE ENFORCED
-      positionValueRatio: { zh: '仓位价值比例（代码强制）', en: 'Position Value Ratio (CODE ENFORCED)' },
-      positionValueRatioDesc: { zh: '单仓位名义价值 / 账户净值，由代码强制执行', en: 'Position notional value / equity, enforced by code' },
-      btcEthPositionValueRatio: { zh: 'BTC/ETH 仓位价值比例', en: 'BTC/ETH Position Value Ratio' },
-      btcEthPositionValueRatioDesc: { zh: '单仓最大名义价值 = 净值 × 此值（代码强制）', en: 'Max position value = equity × this ratio (CODE ENFORCED)' },
-      altcoinPositionValueRatio: { zh: '山寨币仓位价值比例', en: 'Altcoin Position Value Ratio' },
-      altcoinPositionValueRatioDesc: { zh: '单仓最大名义价值 = 净值 × 此值（代码强制）', en: 'Max position value = equity × this ratio (CODE ENFORCED)' },
-      riskParameters: { zh: '风险参数', en: 'Risk Parameters' },
-      minRiskReward: { zh: '最小风险回报比', en: 'Min Risk/Reward Ratio' },
-      minRiskRewardDesc: { zh: '开仓要求的最低盈亏比', en: 'Minimum profit ratio for opening' },
-      maxMarginUsage: { zh: '最大保证金使用率（代码强制）', en: 'Max Margin Usage (CODE ENFORCED)' },
-      maxMarginUsageDesc: { zh: '保证金使用率上限，由代码强制执行', en: 'Maximum margin utilization, enforced by code' },
-      entryRequirements: { zh: '开仓要求', en: 'Entry Requirements' },
-      minPositionSize: { zh: '最小开仓金额', en: 'Min Position Size' },
-      minPositionSizeDesc: { zh: 'USDT 最小名义价值', en: 'Minimum notional value in USDT' },
-      minConfidence: { zh: '最小信心度', en: 'Min Confidence' },
-      minConfidenceDesc: { zh: 'AI 开仓信心度阈值', en: 'AI confidence threshold for entry' },
-      // Trade safeguards
-      tradeSafeguards: { zh: '交易安全保护（代码强制）', en: 'Trade Safeguards (CODE ENFORCED)' },
-      tradeSafeguardsDesc: { zh: '防止过度交易和过紧止损，由代码强制执行', en: 'Prevents overtrading and too-tight stops, enforced by code' },
-      minSLDistance: { zh: '最小止损距离', en: 'Min Stop Loss Distance' },
-      minSLDistanceDesc: { zh: '止损价与入场价的最小距离百分比', en: 'Min % distance from entry to stop loss' },
-      minTPDistance: { zh: '最小止盈距离', en: 'Min Take Profit Distance' },
-      minTPDistanceDesc: { zh: '止盈价与入场价的最小距离百分比', en: 'Min % distance from entry to take profit' },
-      tradeCooldown: { zh: '交易冷却时间', en: 'Trade Cooldown' },
-      tradeCooldownDesc: { zh: '平仓后等待再次开仓的分钟数', en: 'Minutes to wait after close before new open' },
-      maxDailyTrades: { zh: '每日最大交易次数', en: 'Max Daily Trades' },
-      maxDailyTradesDesc: { zh: '每天允许的最大新开仓次数', en: 'Maximum new positions opened per day' },
-      // Market hours
-      marketHours: { zh: '市场交易时间（代码强制）', en: 'Market Hours (CODE ENFORCED)' },
-      marketHoursDesc: { zh: '仅在美国股市交易时间内允许开仓', en: 'Only allow new positions during US stock market hours' },
-      marketHoursOnly: { zh: '限制交易时间', en: 'Market Hours Only' },
-      marketHoursOnlyDesc: { zh: '启用后仅在美股交易时间9:30-16:00 ET内交易', en: 'When enabled, only trade during 9:30 AM - 4:00 PM ET' },
-      openBuffer: { zh: '开盘缓冲', en: 'Open Buffer' },
-      openBufferDesc: { zh: '开盘后等待的分钟数（避免开盘波动）', en: 'Minutes after open to wait (avoid opening volatility)' },
-      closeBuffer: { zh: '收盘缓冲', en: 'Close Buffer' },
-      closeBufferDesc: { zh: '收盘前停止开仓的分钟数', en: 'Minutes before close to stop entries' },
-    }
-    return translations[key]?.[language] || key
-  }
-
   const updateField = <K extends keyof RiskControlConfig>(
     key: K,
     value: RiskControlConfig[K]
@@ -82,7 +31,7 @@ export function RiskControlEditor({
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5" style={{ color: '#F0B90B' }} />
           <h3 className="font-medium" style={{ color: '#EAECEF' }}>
-            {t('positionLimits')}
+            {ts(riskControl.positionLimits, language)}
           </h3>
         </div>
 
@@ -92,10 +41,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('maxPositions')}
+              {ts(riskControl.maxPositions, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('maxPositionsDesc')}
+              {ts(riskControl.maxPositionsDesc, language)}
             </p>
             <input
               type="number"
@@ -105,7 +54,7 @@ export function RiskControlEditor({
               }
               disabled={disabled}
               min={1}
-              max={10}
+              max={3}
               className="w-32 px-3 py-2 rounded"
               style={{
                 background: '#1E2329',
@@ -119,7 +68,7 @@ export function RiskControlEditor({
         {/* Trading Leverage (Exchange) */}
         <div className="mb-2">
           <p className="text-xs font-medium mb-2" style={{ color: '#F0B90B' }}>
-            {t('tradingLeverage')}
+            {ts(riskControl.tradingLeverage, language)}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -128,10 +77,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('btcEthLeverage')}
+              {ts(riskControl.btcEthLeverage, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('btcEthLeverageDesc')}
+              {ts(riskControl.btcEthLeverageDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -159,10 +108,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('altcoinLeverage')}
+              {ts(riskControl.altcoinLeverage, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('altcoinLeverageDesc')}
+              {ts(riskControl.altcoinLeverageDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -189,10 +138,10 @@ export function RiskControlEditor({
         {/* Position Value Ratio (Risk Control - CODE ENFORCED) */}
         <div className="mb-2">
           <p className="text-xs font-medium" style={{ color: '#0ECB81' }}>
-            {t('positionValueRatio')}
+            {ts(riskControl.positionValueRatio, language)}
           </p>
           <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
-            {t('positionValueRatioDesc')}
+            {ts(riskControl.positionValueRatioDesc, language)}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -201,10 +150,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #0ECB81' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('btcEthPositionValueRatio')}
+              {ts(riskControl.btcEthPositionValueRatio, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('btcEthPositionValueRatioDesc')}
+              {ts(riskControl.btcEthPositionValueRatioDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -233,10 +182,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #0ECB81' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('altcoinPositionValueRatio')}
+              {ts(riskControl.altcoinPositionValueRatio, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('altcoinPositionValueRatioDesc')}
+              {ts(riskControl.altcoinPositionValueRatioDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -267,7 +216,7 @@ export function RiskControlEditor({
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="w-5 h-5" style={{ color: '#F6465D' }} />
           <h3 className="font-medium" style={{ color: '#EAECEF' }}>
-            {t('riskParameters')}
+            {ts(riskControl.riskParameters, language)}
           </h3>
         </div>
 
@@ -277,10 +226,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('minRiskReward')}
+              {ts(riskControl.minRiskReward, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('minRiskRewardDesc')}
+              {ts(riskControl.minRiskRewardDesc, language)}
             </p>
             <div className="flex items-center">
               <span style={{ color: '#848E9C' }}>1:</span>
@@ -309,10 +258,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #0ECB81' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('maxMarginUsage')}
+              {ts(riskControl.maxMarginUsage, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('maxMarginUsageDesc')}
+              {ts(riskControl.maxMarginUsageDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -339,7 +288,7 @@ export function RiskControlEditor({
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5" style={{ color: '#0ECB81' }} />
           <h3 className="font-medium" style={{ color: '#EAECEF' }}>
-            {t('entryRequirements')}
+            {ts(riskControl.entryRequirements, language)}
           </h3>
         </div>
 
@@ -349,10 +298,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('minPositionSize')}
+              {ts(riskControl.minPositionSize, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('minPositionSizeDesc')}
+              {ts(riskControl.minPositionSizeDesc, language)}
             </p>
             <div className="flex items-center">
               <input
@@ -382,10 +331,10 @@ export function RiskControlEditor({
             style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
           >
             <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('minConfidence')}
+              {ts(riskControl.minConfidence, language)}
             </label>
             <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('minConfidenceDesc')}
+              {ts(riskControl.minConfidenceDesc, language)}
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -405,265 +354,6 @@ export function RiskControlEditor({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Trade Safeguards (CODE ENFORCED) */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-5 h-5" style={{ color: '#F6465D' }} />
-          <h3 className="font-medium" style={{ color: '#EAECEF' }}>
-            {t('tradeSafeguards')}
-          </h3>
-        </div>
-        <p className="text-xs mb-4" style={{ color: '#848E9C' }}>
-          {t('tradeSafeguardsDesc')}
-        </p>
-
-        <div className="grid grid-cols-2 gap-4">
-          {/* Min SL Distance */}
-          <div
-            className="p-4 rounded-lg"
-            style={{ background: '#0B0E11', border: '1px solid #F6465D' }}
-          >
-            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('minSLDistance')}
-            </label>
-            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('minSLDistanceDesc')}
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                value={config.min_stop_loss_distance_pct ?? 2}
-                onChange={(e) =>
-                  updateField('min_stop_loss_distance_pct', parseFloat(e.target.value))
-                }
-                disabled={disabled}
-                min={0.5}
-                max={10}
-                step={0.5}
-                className="flex-1 accent-red-500"
-              />
-              <span className="w-14 text-center font-mono" style={{ color: '#F6465D' }}>
-                {config.min_stop_loss_distance_pct ?? 2}%
-              </span>
-            </div>
-          </div>
-
-          {/* Min TP Distance */}
-          <div
-            className="p-4 rounded-lg"
-            style={{ background: '#0B0E11', border: '1px solid #0ECB81' }}
-          >
-            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('minTPDistance')}
-            </label>
-            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('minTPDistanceDesc')}
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                value={config.min_take_profit_distance_pct ?? 1}
-                onChange={(e) =>
-                  updateField('min_take_profit_distance_pct', parseFloat(e.target.value))
-                }
-                disabled={disabled}
-                min={0.5}
-                max={10}
-                step={0.5}
-                className="flex-1 accent-green-500"
-              />
-              <span className="w-14 text-center font-mono" style={{ color: '#0ECB81' }}>
-                {config.min_take_profit_distance_pct ?? 1}%
-              </span>
-            </div>
-          </div>
-
-          {/* Trade Cooldown */}
-          <div
-            className="p-4 rounded-lg"
-            style={{ background: '#0B0E11', border: '1px solid #F0B90B' }}
-          >
-            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('tradeCooldown')}
-            </label>
-            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('tradeCooldownDesc')}
-            </p>
-            <div className="flex items-center">
-              <input
-                type="number"
-                value={config.trade_cooldown_minutes ?? 10}
-                onChange={(e) =>
-                  updateField('trade_cooldown_minutes', parseInt(e.target.value) || 10)
-                }
-                disabled={disabled}
-                min={0}
-                max={60}
-                className="w-20 px-3 py-2 rounded"
-                style={{
-                  background: '#1E2329',
-                  border: '1px solid #2B3139',
-                  color: '#EAECEF',
-                }}
-              />
-              <span className="ml-2" style={{ color: '#848E9C' }}>
-                min
-              </span>
-            </div>
-          </div>
-
-          {/* Max Daily Trades */}
-          <div
-            className="p-4 rounded-lg"
-            style={{ background: '#0B0E11', border: '1px solid #F0B90B' }}
-          >
-            <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-              {t('maxDailyTrades')}
-            </label>
-            <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-              {t('maxDailyTradesDesc')}
-            </p>
-            <div className="flex items-center">
-              <input
-                type="number"
-                value={config.max_daily_trades ?? 6}
-                onChange={(e) =>
-                  updateField('max_daily_trades', parseInt(e.target.value) || 6)
-                }
-                disabled={disabled}
-                min={1}
-                max={50}
-                className="w-20 px-3 py-2 rounded"
-                style={{
-                  background: '#1E2329',
-                  border: '1px solid #2B3139',
-                  color: '#EAECEF',
-                }}
-              />
-              <span className="ml-2" style={{ color: '#848E9C' }}>
-                trades
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Market Hours (CODE ENFORCED) */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-5 h-5" style={{ color: '#3B82F6' }} />
-          <h3 className="font-medium" style={{ color: '#EAECEF' }}>
-            {t('marketHours')}
-          </h3>
-        </div>
-        <p className="text-xs mb-4" style={{ color: '#848E9C' }}>
-          {t('marketHoursDesc')}
-        </p>
-
-        {/* Toggle */}
-        <div
-          className="p-4 rounded-lg mb-4"
-          style={{ background: '#0B0E11', border: `1px solid ${config.market_hours_only ? '#3B82F6' : '#2B3139'}` }}
-        >
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.market_hours_only ?? false}
-              onChange={(e) => updateField('market_hours_only', e.target.checked)}
-              disabled={disabled}
-              className="w-5 h-5 accent-blue-500 rounded"
-            />
-            <div>
-              <span className="text-sm" style={{ color: '#EAECEF' }}>
-                {t('marketHoursOnly')}
-              </span>
-              <p className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
-                {t('marketHoursOnlyDesc')}
-              </p>
-            </div>
-          </label>
-        </div>
-
-        {/* Buffer controls - only shown when enabled */}
-        {config.market_hours_only && (
-          <div className="grid grid-cols-2 gap-4">
-            <div
-              className="p-4 rounded-lg"
-              style={{ background: '#0B0E11', border: '1px solid #3B82F6' }}
-            >
-              <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-                {t('openBuffer')}
-              </label>
-              <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-                {t('openBufferDesc')}
-              </p>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  value={config.market_open_buffer_minutes ?? 15}
-                  onChange={(e) =>
-                    updateField('market_open_buffer_minutes', parseInt(e.target.value) || 15)
-                  }
-                  disabled={disabled}
-                  min={0}
-                  max={60}
-                  className="w-20 px-3 py-2 rounded"
-                  style={{
-                    background: '#1E2329',
-                    border: '1px solid #2B3139',
-                    color: '#EAECEF',
-                  }}
-                />
-                <span className="ml-2" style={{ color: '#848E9C' }}>min</span>
-              </div>
-              <p className="text-xs mt-2" style={{ color: '#3B82F6' }}>
-                → Earliest entry: {(() => {
-                  const m = 9 * 60 + 30 + (config.market_open_buffer_minutes ?? 15)
-                  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} ET`
-                })()}
-              </p>
-            </div>
-
-            <div
-              className="p-4 rounded-lg"
-              style={{ background: '#0B0E11', border: '1px solid #3B82F6' }}
-            >
-              <label className="block text-sm mb-1" style={{ color: '#EAECEF' }}>
-                {t('closeBuffer')}
-              </label>
-              <p className="text-xs mb-2" style={{ color: '#848E9C' }}>
-                {t('closeBufferDesc')}
-              </p>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  value={config.market_close_buffer_minutes ?? 30}
-                  onChange={(e) =>
-                    updateField('market_close_buffer_minutes', parseInt(e.target.value) || 30)
-                  }
-                  disabled={disabled}
-                  min={0}
-                  max={120}
-                  className="w-20 px-3 py-2 rounded"
-                  style={{
-                    background: '#1E2329',
-                    border: '1px solid #2B3139',
-                    color: '#EAECEF',
-                  }}
-                />
-                <span className="ml-2" style={{ color: '#848E9C' }}>min</span>
-              </div>
-              <p className="text-xs mt-2" style={{ color: '#3B82F6' }}>
-                → Last entry: {(() => {
-                  const m = 16 * 60 - (config.market_close_buffer_minutes ?? 30)
-                  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} ET`
-                })()}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

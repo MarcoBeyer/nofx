@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"nofx/logger"
+	"nofx/security"
 )
 
 // Config client configuration (centralized management of all configurations)
@@ -19,6 +20,7 @@ type Config struct {
 
 	// Behavior configuration
 	MaxTokens   int
+	MaxContext  int     // Model's max context window in tokens (0 = no limit)
 	Temperature float64
 	UseFullURL  bool
 
@@ -48,7 +50,7 @@ func DefaultConfig() *Config {
 
 		// Default dependencies (use global logger)
 		Logger:     logger.NewMCPLogger(),
-		HTTPClient: &http.Client{Timeout: DefaultTimeout},
+		HTTPClient: security.SafeHTTPClient(DefaultTimeout),
 	}
 }
 

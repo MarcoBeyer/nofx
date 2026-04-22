@@ -3,14 +3,15 @@ package main
 import (
 	"nofx/api"
 	"nofx/auth"
-	"nofx/backtest"
 	"nofx/config"
 	"nofx/crypto"
-	"nofx/experience"
+	"nofx/telemetry"
 	"nofx/logger"
 	"nofx/manager"
-	"nofx/mcp"
+	_ "nofx/mcp/payment"
+	_ "nofx/mcp/provider"
 	"nofx/store"
+	"nofx/telegram"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -78,7 +79,6 @@ func main() {
 		logger.Fatalf("❌ Failed to initialize database: %v", err)
 	}
 	defer st.Close()
-	backtest.UseDatabaseWithType(st.DB(), st.DBType() == store.DBTypePostgres)
 
 	// Initialize installation ID for experience improvement (anonymous statistics)
 	initInstallationID(st)
@@ -95,13 +95,8 @@ func main() {
 	// time.Sleep(500 * time.Millisecond)
 	logger.Info("📊 Using CoinAnk API for all market data (WebSocket cache disabled)")
 
-	// Create TraderManager and BacktestManager
+	// Create TraderManager
 	traderManager := manager.NewTraderManager()
-	mcpClient := newSharedMCPClient()
-	backtestManager := backtest.NewManager(mcpClient)
-	if err := backtestManager.RestoreRuns(); err != nil {
-		logger.Warnf("⚠️ Failed to restore backtest history: %v", err)
-	}
 
 	// Load all traders from database to memory (may auto-start traders with IsRunning=true)
 	if err := traderManager.LoadTradersFromStore(st); err != nil {
@@ -123,18 +118,31 @@ func main() {
 			if t.IsRunning {
 				status = "✅ Running"
 			}
-			logger.Infof("  • %s [%s] %s - AI Model: %s, Exchange: %s",
-				t.Name, t.ID[:8], status, t.AIModelID, t.ExchangeID)
+			idShort := t.ID
+		if len(idShort) > 8 {
+			idShort = idShort[:8]
+		}
+		logger.Infof("  • %s [%s] %s - AI Model: %s, Exchange: %s",
+				t.Name, idShort, status, t.AIModelID, t.ExchangeID)
 		}
 	}
 
 	// Start API server
-	server := api.NewServer(traderManager, st, cryptoService, backtestManager, cfg.APIServerPort)
+	server := api.NewServer(traderManager, st, cryptoService, cfg.APIServerPort)
+
+	// Create hot-reload channel for Telegram bot; wire it to the API server
+	// so that POST /api/telegram can trigger a bot restart when the token changes.
+	telegramReloadCh := make(chan struct{}, 1)
+	server.SetTelegramReloadCh(telegramReloadCh)
+
 	go func() {
 		if err := server.Start(); err != nil {
 			logger.Fatalf("❌ Failed to start API server: %v", err)
 		}
 	}()
+
+	// Start Telegram bot (if TELEGRAM_BOT_TOKEN is configured)
+	go telegram.Start(cfg, st, telegramReloadCh)
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
@@ -149,16 +157,6 @@ func main() {
 	// Stop all traders
 	traderManager.StopAll()
 	logger.Info("✅ System shut down safely")
-}
-
-// newSharedMCPClient creates a shared MCP AI client (for backtesting)
-func newSharedMCPClient() mcp.AIClient {
-	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		logger.Warn("⚠️ DEEPSEEK_API_KEY not set, AI features will be unavailable")
-		return nil
-	}
-	return mcp.NewDeepSeekClient()
 }
 
 // initInstallationID initializes the anonymous installation ID for experience improvement
@@ -182,5 +180,5 @@ func initInstallationID(st *store.Store) {
 	}
 
 	// Set installation ID in experience module
-	experience.SetInstallationID(installationID)
+	telemetry.SetInstallationID(installationID)
 }

@@ -3,8 +3,6 @@ package manager
 import (
 	"context"
 	"fmt"
-	"nofx/debate"
-	"nofx/kernel"
 	"nofx/logger"
 	"nofx/store"
 	"nofx/trader"
@@ -12,27 +10,6 @@ import (
 	"sync"
 	"time"
 )
-
-// TraderExecutorAdapter wraps AutoTrader to implement debate.TraderExecutor
-type TraderExecutorAdapter struct {
-	autoTrader *trader.AutoTrader
-}
-
-// ExecuteDecision executes a trading decision
-func (a *TraderExecutorAdapter) ExecuteDecision(d *kernel.Decision) error {
-	return a.autoTrader.ExecuteDecision(d)
-}
-
-// GetBalance returns account balance
-func (a *TraderExecutorAdapter) GetBalance() (map[string]interface{}, error) {
-	info, err := a.autoTrader.GetAccountInfo()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get account info: %w", err)
-	}
-	// Log the balance for debugging
-	logger.Infof("[Debate] GetBalance for trader, result: %+v", info)
-	return info, nil
-}
 
 // CompetitionCache competition data cache
 type CompetitionCache struct {
@@ -710,15 +687,6 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		traderConfig.LighterAPIKeyPrivateKey = string(exchangeCfg.LighterAPIKeyPrivateKey)
 		traderConfig.LighterAPIKeyIndex = exchangeCfg.LighterAPIKeyIndex
 		traderConfig.LighterTestnet = exchangeCfg.Testnet
-	case "alpaca":
-		traderConfig.AlpacaAPIKey = string(exchangeCfg.APIKey)
-		traderConfig.AlpacaSecretKey = string(exchangeCfg.SecretKey)
-		// Set feed URL based on testnet flag
-		if exchangeCfg.Testnet {
-			traderConfig.AlpacaFeedURL = "https://paper-api.alpaca.markets"
-		} else {
-			traderConfig.AlpacaFeedURL = "https://api.alpaca.markets"
-		}
 	case "indodax":
 		traderConfig.IndodaxAPIKey = string(exchangeCfg.APIKey)
 		traderConfig.IndodaxSecretKey = string(exchangeCfg.SecretKey)
@@ -734,6 +702,8 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 		// For other providers (grok, openai, claude, gemini, kimi, etc.), use CustomAPIKey
 		traderConfig.CustomAPIKey = string(aiModelCfg.APIKey)
 	}
+
+	traderConfig.Claw402WalletKey = resolveTraderDataWalletKey(st, traderCfg.UserID, aiModelCfg)
 
 	// Create trader instance
 	at, err := trader.NewAutoTrader(traderConfig, st, traderCfg.UserID)
@@ -773,12 +743,26 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 	return nil
 }
 
-// GetTraderExecutor returns a TraderExecutor for the given trader ID
-// This is used by the debate module to execute consensus trades
-func (tm *TraderManager) GetTraderExecutor(traderID string) (debate.TraderExecutor, error) {
-	at, err := tm.GetTrader(traderID)
-	if err != nil {
-		return nil, err
+func resolveTraderDataWalletKey(st *store.Store, userID string, selectedModel *store.AIModel) string {
+	// Fast path: selected model is itself a claw402 model.
+	if selectedModel != nil && selectedModel.Provider == "claw402" {
+		if walletKey := string(selectedModel.APIKey); walletKey != "" {
+			return walletKey
+		}
 	}
-	return &TraderExecutorAdapter{autoTrader: at}, nil
+
+	if st == nil {
+		return ""
+	}
+
+	// Fallback: find any configured claw402 model for this user so that paid
+	// NofxAI data sources work even when a non-claw402 model (e.g. deepseek) is
+	// selected as the AI brain.
+	preferredID := ""
+	walletKey, err := st.AIModel().ResolveClaw402WalletKey(userID, preferredID)
+	if err != nil {
+		logger.Warnf("⚠️ Failed to load claw402 wallet for trader data routing: %v", err)
+		return ""
+	}
+	return walletKey
 }

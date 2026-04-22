@@ -19,6 +19,28 @@ export interface ApiResponse<T = any> {
   success: boolean
   data?: T
   message?: string
+  errorKey?: string
+  errorParams?: Record<string, string>
+  statusCode?: number
+}
+
+export class ApiError extends Error {
+  errorKey?: string
+  errorParams?: Record<string, string>
+  statusCode?: number
+
+  constructor(
+    message: string,
+    errorKey?: string,
+    errorParams?: Record<string, string>,
+    statusCode?: number
+  ) {
+    super(message)
+    this.name = 'ApiError'
+    this.errorKey = errorKey
+    this.errorParams = errorParams
+    this.statusCode = statusCode
+  }
 }
 
 /**
@@ -85,18 +107,27 @@ export class HttpClient {
    * Only business errors are returned to caller
    */
   private async handleError(error: AxiosError): Promise<any> {
+    const isSilent = (error.config as any)?.silentError === true
+    const errorData = error.response?.data as {
+      error?: string
+      message?: string
+      error_key?: string
+      error_params?: Record<string, string>
+    } | undefined
+    const serverMessage = errorData?.error || errorData?.message
+
     // Network error (no response from server)
     if (!error.response) {
-      toast.error('Network error - Please check your connection', {
-        description: 'Unable to reach the server',
-      })
+      if (!isSilent) {
+        toast.error('Network error - Please check your connection', {
+          id: 'network-error',
+          description: 'Unable to reach the server',
+        })
+      }
       throw new Error('Network error')
     }
 
-    const { status } = error.response as AxiosResponse<{
-      error?: string
-      message?: string
-    }>
+    const status = error.response?.status ?? 0
 
     // Handle 401 Unauthorized
     if (status === 401) {
@@ -132,25 +163,37 @@ export class HttpClient {
 
     // Handle 403 Forbidden - system error
     if (status === 403) {
-      toast.error('Permission Denied', {
-        description: 'You do not have permission to access this resource',
-      })
+      if (!isSilent) {
+        toast.error('Permission Denied', {
+          id: 'permission-denied',
+          description: 'You do not have permission to access this resource',
+        })
+      }
       throw new Error('Permission denied')
     }
 
     // Handle 404 Not Found - system error
     if (status === 404) {
-      toast.error('API Not Found', {
-        description: 'The requested endpoint does not exist (404)',
-      })
+      if (!isSilent) {
+        toast.error('API Not Found', {
+          id: `404-${(error.config as any)?.url || 'unknown'}`,
+          description: 'The requested endpoint does not exist (404)',
+        })
+      }
       throw new Error('API not found')
     }
 
     // Handle 500+ Server Error - system error
     if (status >= 500) {
-      toast.error('Server Error', {
-        description: 'Please try again later or contact support',
-      })
+      if (serverMessage) {
+        return Promise.reject(error)
+      }
+      if (!isSilent) {
+        toast.error('Server Error', {
+          id: 'server-error',
+          description: 'Please try again later or contact support',
+        })
+      }
       throw new Error('Server error')
     }
 
@@ -171,6 +214,7 @@ export class HttpClient {
       data?: any
       params?: any
       headers?: Record<string, string>
+      silent?: boolean
     } = {}
   ): Promise<ApiResponse<T>> {
     try {
@@ -180,6 +224,7 @@ export class HttpClient {
         data: options.data,
         params: options.params,
         headers: options.headers,
+        ...(options.silent && { silentError: true }),
       })
 
       // Success
@@ -196,6 +241,9 @@ export class HttpClient {
         return {
           success: false,
           message: errorData?.error || errorData?.message || 'Operation failed',
+          errorKey: errorData?.error_key,
+          errorParams: errorData?.error_params,
+          statusCode: error.response.status,
         }
       }
 
