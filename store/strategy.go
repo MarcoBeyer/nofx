@@ -178,6 +178,11 @@ type CoinSourceConfig struct {
 	// Hyperliquid Main maximum count (default 20)
 	HyperMainLimit int `json:"hyper_main_limit,omitempty"`
 	// Note: API URLs are now built automatically using NofxOSAPIKey from IndicatorConfig
+
+	// whether to use Finnhub stock screener
+	UseStockScreener   bool   `json:"use_stock_screener"`
+	StockScreenerType  string `json:"stock_screener_type,omitempty"`  // "gainers", "losers", "momentum"
+	StockScreenerLimit int    `json:"stock_screener_limit,omitempty"` // default 10
 }
 
 // IndicatorConfig indicator configuration

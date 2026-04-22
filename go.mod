@@ -21,8 +21,10 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.118.0 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
+	github.com/alpacahq/alpaca-trade-api-go/v3 v3.9.1 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/antihax/optional v1.0.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect

@@ -41,6 +41,7 @@ type Config struct {
 	// Market data provider API keys
 	AlpacaAPIKey    string // Alpaca API key for US stocks
 	AlpacaSecretKey string // Alpaca secret key
+	FinnhubAPIKey   string // Finnhub API key for stock screening & news
 	TwelveDataKey   string // TwelveData API key for forex & metals
 
 }
@@ -89,6 +90,7 @@ func Init() {
 	// Market data provider API keys
 	cfg.AlpacaAPIKey = os.Getenv("ALPACA_API_KEY")
 	cfg.AlpacaSecretKey = os.Getenv("ALPACA_SECRET_KEY")
+	cfg.FinnhubAPIKey = os.Getenv("FINNHUB_API_KEY")
 	cfg.TwelveDataKey = os.Getenv("TWELVEDATA_API_KEY")
 
 	// Database configuration

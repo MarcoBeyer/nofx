@@ -1,3 +1,5 @@
+cloud.google.com/go v0.118.0 h1:tvZe1mgqRxpiVa3XlIGMiPcEUbP1gNXELgD4y/IXmeQ=
+cloud.google.com/go v0.118.0/go.mod h1:zIt2pkedt/mo+DQjcT4/L3NDxzHPR29j5HcclNH+9PM=
 filippo.io/edwards25519 v1.0.0-rc.1 h1:m0VOOB23frXZvAOK44usCgLWvtsxIoMCTBGJZlpmGfU=
 filippo.io/edwards25519 v1.0.0-rc.1/go.mod h1:N1IkdkCkiLB6tki+MYJoSx2JTY9NUlxZE7eHn5EwJns=
 github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 h1:1zYrtlhrZ6/b6SAjLSfKzWtdgqK0U+HtH/VcBWh1BaU=
@@ -10,6 +12,8 @@ github.com/adshao/go-binance/v2 v2.8.9 h1:NX+4u/LgEmrjTS7OMWU+9ZgfHKFM61RPhnr9/S
 github.com/adshao/go-binance/v2 v2.8.9/go.mod h1:XkkuecSyJKPolaCGf/q4ovJYB3t0P+7RUYTbGr+LMGM=
 github.com/agiledragon/gomonkey/v2 v2.13.0 h1:B24Jg6wBI1iB8EFR1c+/aoTg7QN/Cum7YffG8KMIyYo=
 github.com/agiledragon/gomonkey/v2 v2.13.0/go.mod h1:ap1AmDzcVOAz1YpeJ3TCzIgstoaWLA6jbbgxfB4w2iY=
+github.com/alpacahq/alpaca-trade-api-go/v3 v3.9.1 h1:G2v0C5kTcTQLyih731SJSaRrsItkf0TDoNZsSJliNKs=
+github.com/alpacahq/alpaca-trade-api-go/v3 v3.9.1/go.mod h1:15o3CsYACxBoRu5IKh7OnCkTrf1jWj+eGYsZc44zvIU=
 github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 h1:MzBOUgng9orim59UnfUTLRjMpd09C5uEVQ6RPGeCaVI=
 github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129/go.mod h1:rFgpPQZYZ8vdbc+48xibu8ALc3yeyd64IhHS+PU6Yyg=
 github.com/antihax/optional v1.0.0 h1:xK2lYat7ZLaVVcIuj82J8kIro4V6kDe0AUDFboUCwcg=

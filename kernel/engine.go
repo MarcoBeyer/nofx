@@ -9,6 +9,7 @@ import (
 	"os"
 	"nofx/logger"
 	"nofx/market"
+	"nofx/provider/finnhub"
 	"nofx/provider/hyperliquid"
 	"nofx/provider/nofxos"
 	"nofx/security"
@@ -441,6 +442,24 @@ func (e *StrategyEngine) GetCandidateCoins() ([]CandidateCoin, error) {
 		}
 		return e.filterExcludedCoins(candidates), nil
 
+	case "stock_screener":
+		// Fetch from Finnhub stock screener
+		if !coinSource.UseStockScreener {
+			logger.Infof("⚠️  source_type is 'stock_screener' but use_stock_screener is false, falling back to static coins")
+			for _, symbol := range coinSource.StaticCoins {
+				candidates = append(candidates, CandidateCoin{
+					Symbol:  symbol,
+					Sources: []string{"static"},
+				})
+			}
+			return e.filterExcludedCoins(candidates), nil
+		}
+		coins, err := e.getStockScreenerCoins(coinSource.StockScreenerLimit, coinSource.StockScreenerType)
+		if err != nil {
+			return nil, err
+		}
+		return e.filterExcludedCoins(coins), nil
+
 	default:
 		return nil, fmt.Errorf("unknown coin source type: %s", coinSource.SourceType)
 	}
@@ -858,6 +877,47 @@ func (e *StrategyEngine) FetchPriceRankingData() *nofxos.PriceRankingData {
 	logger.Infof("✓ Price ranking data ready for %d durations", len(data.Durations))
 
 	return data
+}
+
+// getStockScreenerCoins fetches candidate stocks from Finnhub screener
+func (e *StrategyEngine) getStockScreenerCoins(limit int, screenerType string) ([]CandidateCoin, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if screenerType == "" {
+		screenerType = "gainers"
+	}
+
+	client := finnhub.DefaultClient()
+
+	var stocks []finnhub.ScreenedStock
+	var err error
+
+	switch screenerType {
+	case "gainers":
+		stocks, err = client.GetTopGainers(limit)
+	case "losers":
+		stocks, err = client.GetTopLosers(limit)
+	case "momentum":
+		stocks, err = client.GetTopMomentum(limit)
+	default:
+		stocks, err = client.GetTopGainers(limit)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stocks from screener: %w", err)
+	}
+
+	var candidates []CandidateCoin
+	for _, stock := range stocks {
+		candidates = append(candidates, CandidateCoin{
+			Symbol:  stock.Symbol,
+			Sources: []string{"stock_screener"},
+		})
+	}
+
+	logger.Infof("📈 Screened %d stocks (type: %s)", len(candidates), screenerType)
+	return candidates, nil
 }
 
 // ============================================================================

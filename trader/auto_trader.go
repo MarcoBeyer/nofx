@@ -62,6 +62,11 @@ type AutoTraderConfig struct {
 	KuCoinSecretKey  string
 	KuCoinPassphrase string
 
+	// Alpaca configuration
+	AlpacaAPIKey    string
+	AlpacaSecretKey string
+	AlpacaFeedURL   string // "https://paper-api.alpaca.markets" or "https://api.alpaca.markets"
+
 	// Indodax API configuration
 	IndodaxAPIKey    string
 	IndodaxSecretKey string
@@ -284,6 +289,9 @@ func NewAutoTrader(config AutoTraderConfig, st *store.Store, userID string) (*Au
 			return nil, fmt.Errorf("failed to initialize LIGHTER trader: %w", err)
 		}
 		logger.Infof("✓ LIGHTER trader initialized successfully")
+	case "alpaca":
+		logger.Infof("🏦 [%s] Using Alpaca trading", config.Name)
+		trader = NewAlpacaTrader(config.AlpacaAPIKey, config.AlpacaSecretKey, config.AlpacaFeedURL)
 	case "indodax":
 		logger.Infof("🏦 [%s] Using Indodax Spot trading", config.Name)
 		trader = indodax.NewIndodaxTrader(config.IndodaxAPIKey, config.IndodaxSecretKey)

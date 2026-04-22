@@ -56,6 +56,16 @@ func (at *AutoTrader) runCycle() error {
 		logger.Info("📅 Daily P&L reset")
 	}
 
+	// 3. Check if market is open for Alpaca (skip AI to save tokens when market closed)
+	if at.exchange == "alpaca" {
+		if alpacaTrader, ok := at.trader.(*AlpacaTrader); ok {
+			if !alpacaTrader.IsMarketOpen() {
+				logger.Infof("🌙 [Alpaca] Market is closed, skipping AI cycle to save tokens")
+				return nil
+			}
+		}
+	}
+
 	// 4. Collect trading context
 	ctx, err := at.buildTradingContext()
 	if err != nil {
