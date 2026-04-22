@@ -22,7 +22,11 @@ func WithLogger(logger Logger) ClientOption {
 	}
 }
 
-// WithHTTPClient sets custom HTTP client
+// WithHTTPClient sets custom HTTP client.
+//
+// WARNING: The default client uses security.SafeHTTPClient() with SSRF protection
+// (blocks private IPs, cloud metadata, validates redirects). Overriding it bypasses
+// these protections. Only use in tests or with a client providing equivalent safeguards.
 //
 // Usage example:
 //   httpClient := &http.Client{Timeout: 60 * time.Second}
@@ -79,6 +83,19 @@ func WithRetryWaitBase(waitTime time.Duration) ClientOption {
 func WithMaxTokens(maxTokens int) ClientOption {
 	return func(c *Config) {
 		c.MaxTokens = maxTokens
+	}
+}
+
+// WithMaxContext sets the model's max context window in tokens.
+// When set (> 0), the client will automatically truncate oldest non-system
+// messages if the estimated token count exceeds this limit.
+//
+// Usage example:
+//
+//	client := mcp.NewClient(mcp.WithMaxContext(131072)) // DeepSeek 128K
+func WithMaxContext(maxContext int) ClientOption {
+	return func(c *Config) {
+		c.MaxContext = maxContext
 	}
 }
 
@@ -158,5 +175,19 @@ func WithQwenConfig(apiKey string) ClientOption {
 		c.APIKey = apiKey
 		c.BaseURL = DefaultQwenBaseURL
 		c.Model = DefaultQwenModel
+	}
+}
+
+// WithMiniMaxConfig sets MiniMax configuration
+//
+// Usage example:
+//
+//	client := mcp.NewClient(mcp.WithMiniMaxConfig("sk-xxx"))
+func WithMiniMaxConfig(apiKey string) ClientOption {
+	return func(c *Config) {
+		c.Provider = ProviderMiniMax
+		c.APIKey = apiKey
+		c.BaseURL = DefaultMiniMaxBaseURL
+		c.Model = DefaultMiniMaxModel
 	}
 }

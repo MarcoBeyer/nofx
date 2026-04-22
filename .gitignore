@@ -16,6 +16,7 @@ nofx_test
 # Go 相关
 *.test
 *.out
+.gocache/
 
 # 操作系统
 .DS_Store
@@ -26,6 +27,8 @@ Thumbs.db
 *.tmp
 *.bak
 *.backup
+.cache/
+.gh-config/
 
 # 环境变量
 .env
@@ -78,7 +81,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -124,3 +126,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 PR_DESCRIPTION.md
+
+# Go build artifacts
+/nofx-server

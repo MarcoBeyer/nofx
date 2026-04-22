@@ -1,15 +1,16 @@
 import { useEffect, useState, useRef } from 'react'
 import { mutate } from 'swr'
 import { api } from '../lib/api'
-import { ChartTabs } from '../components/ChartTabs'
-import { DecisionCard } from '../components/DecisionCard'
-import { PositionHistory } from '../components/PositionHistory'
-import { PunkAvatar, getTraderAvatar } from '../components/PunkAvatar'
+import { ChartTabs } from '../components/charts/ChartTabs'
+import { DecisionCard } from '../components/trader/DecisionCard'
+import { PositionHistory } from '../components/trader/PositionHistory'
+import { PunkAvatar, getTraderAvatar } from '../components/common/PunkAvatar'
 import { confirmToast, notify } from '../lib/notify'
 import { formatPrice, formatQuantity } from '../utils/format'
 import { t, type Language } from '../i18n/translations'
 import { LogOut, Loader2, Eye, EyeOff, Copy, Check } from 'lucide-react'
-import { DeepVoidBackground } from '../components/DeepVoidBackground'
+import { DeepVoidBackground } from '../components/common/DeepVoidBackground'
+import { NofxSelect } from '../components/ui/select'
 import { GridRiskPanel } from '../components/strategy/GridRiskPanel'
 import type {
     SystemStatus,
@@ -23,7 +24,7 @@ import type {
 
 // --- Helper Functions ---
 
-// 获取友好的AI模型名称
+// Get friendly AI model display name
 function getModelDisplayName(modelId: string): string {
     switch (modelId.toLowerCase()) {
         case 'deepseek':
@@ -102,8 +103,11 @@ interface TraderDashboardPageProps {
     onNavigateToTraders: () => void
     status?: SystemStatus
     account?: AccountInfo
+    accountFailed?: boolean
     positions?: Position[]
+    positionsFailed?: boolean
     decisions?: DecisionRecord[]
+    decisionsFailed?: boolean
     decisionsLimit: number
     onDecisionsLimitChange: (limit: number) => void
     stats?: Statistics
@@ -116,8 +120,11 @@ export function TraderDashboardPage({
     selectedTrader,
     status,
     account,
+    accountFailed,
     positions,
+    positionsFailed,
     decisions,
+    decisionsFailed,
     decisionsLimit,
     onDecisionsLimitChange,
     lastUpdate,
@@ -189,19 +196,17 @@ export function TraderDashboardPage({
         }, 100)
     }
 
-    // 平仓操作
+    // Close position handler
     const handleClosePosition = async (symbol: string, side: string) => {
         if (!selectedTraderId) return
 
-        const confirmMsg =
-            language === 'zh'
-                ? `确定要平仓 ${symbol} ${side === 'LONG' ? '多仓' : '空仓'} 吗？`
-                : `Are you sure you want to close ${symbol} ${side === 'LONG' ? 'LONG' : 'SHORT'} position?`
+        const sideLabel = side === 'LONG' ? 'LONG' : 'SHORT'
+        const confirmMsg = t('traderDashboard.confirmClosePosition', language, { symbol, side: sideLabel })
 
         const confirmed = await confirmToast(confirmMsg, {
-            title: language === 'zh' ? '确认平仓' : 'Confirm Close',
-            okText: language === 'zh' ? '确认' : 'Confirm',
-            cancelText: language === 'zh' ? '取消' : 'Cancel',
+            title: t('traderDashboard.confirmClose', language),
+            okText: t('traderDashboard.confirm', language),
+            cancelText: t('traderDashboard.cancel', language),
         })
 
         if (!confirmed) return
@@ -209,10 +214,8 @@ export function TraderDashboardPage({
         setClosingPosition(symbol)
         try {
             await api.closePosition(selectedTraderId, symbol, side)
-            notify.success(
-                language === 'zh' ? '平仓成功' : 'Position closed successfully'
-            )
-            // 使用 SWR mutate 刷新数据而非重新加载页面
+            notify.success(t('traderDashboard.positionClosed', language))
+            // Use SWR mutate to refresh data instead of reloading page
             await Promise.all([
                 mutate(`positions-${selectedTraderId}`),
                 mutate(`account-${selectedTraderId}`),
@@ -221,9 +224,7 @@ export function TraderDashboardPage({
             const errorMsg =
                 err instanceof Error
                     ? err.message
-                    : language === 'zh'
-                        ? '平仓失败'
-                        : 'Failed to close position'
+                    : t('traderDashboard.closeFailed', language)
             notify.error(errorMsg)
         } finally {
             setClosingPosition(null)
@@ -257,18 +258,16 @@ export function TraderDashboardPage({
                         </svg>
                     </div>
                     <h2 className="text-2xl font-bold mb-3 text-nofx-text-main">
-                        {language === 'zh' ? '无法连接到服务器' : 'Connection Failed'}
+                        {t('traderDashboard.connectionFailed', language)}
                     </h2>
                     <p className="text-base mb-6 text-nofx-text-muted">
-                        {language === 'zh'
-                            ? '请确认后端服务已启动。'
-                            : 'Please check if the backend service is running.'}
+                        {t('traderDashboard.connectionFailedDesc', language)}
                     </p>
                     <button
                         onClick={() => window.location.reload()}
                         className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95 nofx-glass border border-nofx-gold/30 text-nofx-gold hover:bg-nofx-gold/10"
                     >
-                        {language === 'zh' ? '重试' : 'Retry'}
+                        {t('traderDashboard.retry', language)}
                     </button>
                 </div>
             </div>
@@ -384,17 +383,12 @@ export function TraderDashboardPage({
                             {/* Trader Selector */}
                             {traders && traders.length > 0 && (
                                 <div className="flex items-center gap-2 nofx-glass px-1 py-1 rounded-lg border border-white/5">
-                                    <select
-                                        value={selectedTraderId}
-                                        onChange={(e) => onTraderSelect(e.target.value)}
-                                        className="bg-transparent text-sm font-medium cursor-pointer transition-colors text-nofx-text-main focus:outline-none px-2 py-1"
-                                    >
-                                        {traders.map((trader) => (
-                                            <option key={trader.trader_id} value={trader.trader_id} className="bg-[#0B0E11]">
-                                                {trader.trader_name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <NofxSelect
+                                        value={selectedTraderId || ''}
+                                        onChange={(val) => onTraderSelect(val)}
+                                        options={traders.map(t => ({ value: t.trader_id, label: t.trader_name }))}
+                                        className="bg-transparent text-sm font-medium cursor-pointer transition-colors text-nofx-text-main px-2 py-1"
+                                    />
                                 </div>
                             )}
 
@@ -414,12 +408,8 @@ export function TraderDashboardPage({
                                                 className="p-1 rounded hover:bg-white/10 transition-colors"
                                                 title={
                                                     showWalletAddress
-                                                        ? language === 'zh'
-                                                            ? '隐藏地址'
-                                                            : 'Hide address'
-                                                        : language === 'zh'
-                                                            ? '显示完整地址'
-                                                            : 'Show full address'
+                                                        ? t('traderDashboard.hideAddress', language)
+                                                        : t('traderDashboard.showFullAddress', language)
                                                 }
                                             >
                                                 {showWalletAddress ? (
@@ -432,7 +422,7 @@ export function TraderDashboardPage({
                                                 type="button"
                                                 onClick={handleCopyAddress}
                                                 className="p-1 rounded hover:bg-white/10 transition-colors"
-                                                title={language === 'zh' ? '复制地址' : 'Copy address'}
+                                                title={t('traderDashboard.copyAddress', language)}
                                             >
                                                 {copiedAddress ? (
                                                     <Check className="w-3.5 h-3.5 text-nofx-green" />
@@ -443,7 +433,7 @@ export function TraderDashboardPage({
                                         </>
                                     ) : (
                                         <span className="text-xs text-nofx-text-muted">
-                                            {language === 'zh' ? '未配置地址' : 'No address configured'}
+                                            {t('traderDashboard.noAddressConfigured', language)}
                                         </span>
                                     )}
                                 </div>
@@ -496,48 +486,60 @@ export function TraderDashboardPage({
                 </div>
 
                 {/* Debug Info */}
-                {account && (
-                    <div className="mb-4 px-3 py-1.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono text-nofx-text-muted flex justify-between items-center opacity-60 hover:opacity-100 transition-opacity">
-                        <span>SYSTEM_STATUS::ONLINE</span>
+                <div className="mb-4 px-3 py-1.5 rounded bg-black/40 border border-white/5 text-[10px] font-mono text-nofx-text-muted flex justify-between items-center opacity-60 hover:opacity-100 transition-opacity">
+                    <span style={{ color: '#0ECB81' }}>SYSTEM_STATUS::ONLINE</span>
+                    {account ? (
                         <div className="flex gap-4">
                             <span>LAST_UPDATE::{lastUpdate}</span>
-                            <span>EQ::{account?.total_equity?.toFixed(2)}</span>
-                            <span>PNL::{account?.total_pnl?.toFixed(2)}</span>
+                            <span>EQ::{account.total_equity?.toFixed(2)}</span>
+                            <span>PNL::{account.total_pnl?.toFixed(2)}</span>
                         </div>
-                    </div>
-                )}
+                    ) : accountFailed ? (
+                        <span style={{ color: '#F6465D' }}>{t('traderDashboard.accountFetchFailed', language)}</span>
+                    ) : (
+                        <div className="flex gap-4">
+                            <span className="inline-block w-32 h-3 rounded bg-white/5 animate-pulse" />
+                            <span className="inline-block w-16 h-3 rounded bg-white/5 animate-pulse" />
+                            <span className="inline-block w-16 h-3 rounded bg-white/5 animate-pulse" />
+                        </div>
+                    )}
+                </div>
 
                 {/* Account Overview */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <StatCard
                         title={t('totalEquity', language)}
-                        value={`${account?.total_equity?.toFixed(2) || '0.00'}`}
+                        value={accountFailed && !account ? '--' : `${account?.total_equity?.toFixed(2) ?? '--'}`}
                         unit="USDT"
-                        change={account?.total_pnl_pct || 0}
+                        change={account ? (account.total_pnl_pct || 0) : undefined}
                         positive={(account?.total_pnl ?? 0) > 0}
                         icon="💰"
+                        loading={!account && !accountFailed}
                     />
                     <StatCard
                         title={t('availableBalance', language)}
-                        value={`${account?.available_balance?.toFixed(2) || '0.00'}`}
+                        value={accountFailed && !account ? '--' : `${account?.available_balance?.toFixed(2) ?? '--'}`}
                         unit="USDT"
-                        subtitle={`${account?.available_balance && account?.total_equity ? ((account.available_balance / account.total_equity) * 100).toFixed(1) : '0.0'}% ${t('free', language)}`}
+                        subtitle={accountFailed && !account ? '--' : `${account?.available_balance && account?.total_equity ? ((account.available_balance / account.total_equity) * 100).toFixed(1) : '--'}% ${t('free', language)}`}
                         icon="💳"
+                        loading={!account && !accountFailed}
                     />
                     <StatCard
                         title={t('totalPnL', language)}
-                        value={`${account?.total_pnl !== undefined && account.total_pnl >= 0 ? '+' : ''}${account?.total_pnl?.toFixed(2) || '0.00'}`}
+                        value={accountFailed && !account ? '--' : `${account?.total_pnl !== undefined && account.total_pnl >= 0 ? '+' : ''}${account?.total_pnl?.toFixed(2) ?? '--'}`}
                         unit="USDT"
-                        change={account?.total_pnl_pct || 0}
+                        change={account ? (account.total_pnl_pct || 0) : undefined}
                         positive={(account?.total_pnl ?? 0) >= 0}
                         icon="📈"
+                        loading={!account && !accountFailed}
                     />
                     <StatCard
                         title={t('positions', language)}
-                        value={`${account?.position_count || 0}`}
+                        value={accountFailed && !account ? '--' : `${account?.position_count ?? '--'}`}
                         unit="ACTIVE"
-                        subtitle={`${t('margin', language)}: ${account?.margin_used_pct?.toFixed(1) || '0.0'}%`}
+                        subtitle={accountFailed && !account ? `${t('margin', language)}: --` : `${t('margin', language)}: ${account?.margin_used_pct?.toFixed(1) ?? '--'}%`}
                         icon="📊"
+                        loading={!account && !accountFailed}
                     />
                 </div>
 
@@ -599,14 +601,14 @@ export function TraderDashboardPage({
                                                 <tr>
                                                     <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-left">{t('symbol', language)}</th>
                                                     <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">{t('side', language)}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">{language === 'zh' ? '操作' : 'Action'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('entryPrice', language)}>{language === 'zh' ? '入场价' : 'Entry'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('markPrice', language)}>{language === 'zh' ? '标记价' : 'Mark'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right" title={t('quantity', language)}>{language === 'zh' ? '数量' : 'Qty'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('positionValue', language)}>{language === 'zh' ? '价值' : 'Value'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center hidden md:table-cell" title={t('leverage', language)}>{language === 'zh' ? '杠杆' : 'Lev.'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right" title={t('unrealizedPnL', language)}>{language === 'zh' ? '未实现盈亏' : 'uPnL'}</th>
-                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('liqPrice', language)}>{language === 'zh' ? '强平价' : 'Liq.'}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">{t('traderDashboard.action', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('entryPrice', language)}>{t('traderDashboard.entry', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('markPrice', language)}>{t('traderDashboard.mark', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right" title={t('quantity', language)}>{t('traderDashboard.qty', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('positionValue', language)}>{t('traderDashboard.value', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center hidden md:table-cell" title={t('leverage', language)}>{t('traderDashboard.lev', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right" title={t('unrealizedPnL', language)}>{t('traderDashboard.uPnL', language)}</th>
+                                                    <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell" title={t('liqPrice', language)}>{t('traderDashboard.liq', language)}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -644,14 +646,14 @@ export function TraderDashboardPage({
                                                                 }}
                                                                 disabled={closingPosition === pos.symbol}
                                                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed mx-auto bg-nofx-red/10 text-nofx-red border border-nofx-red/30 hover:bg-nofx-red/20"
-                                                                title={language === 'zh' ? '平仓' : 'Close Position'}
+                                                                title={t('traderDashboard.closePosition', language)}
                                                             >
                                                                 {closingPosition === pos.symbol ? (
                                                                     <Loader2 className="w-3 h-3 animate-spin" />
                                                                 ) : (
                                                                     <LogOut className="w-3 h-3" />
                                                                 )}
-                                                                {language === 'zh' ? '平仓' : 'Close'}
+                                                                {t('traderDashboard.close', language)}
                                                             </button>
                                                         </td>
                                                         <td className="px-1 py-3 font-mono whitespace-nowrap text-right text-nofx-text-main hidden md:table-cell">{formatPrice(pos.entry_price)}</td>
@@ -678,22 +680,17 @@ export function TraderDashboardPage({
                                     {totalPositions > 10 && (
                                         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 text-xs border-t border-white/5 text-nofx-text-muted">
                                             <span>
-                                                {language === 'zh'
-                                                    ? `显示 ${paginatedPositions.length} / ${totalPositions} 个持仓`
-                                                    : `Showing ${paginatedPositions.length} of ${totalPositions} positions`}
+                                                {t('traderDashboard.showingPositions', language, { shown: paginatedPositions.length, total: totalPositions })}
                                             </span>
                                             <div className="flex items-center gap-3">
                                                 <div className="flex items-center gap-2">
-                                                    <span>{language === 'zh' ? '每页' : 'Per page'}:</span>
-                                                    <select
+                                                    <span>{t('traderDashboard.perPage', language)}:</span>
+                                                    <NofxSelect
                                                         value={positionsPageSize}
-                                                        onChange={(e) => setPositionsPageSize(Number(e.target.value))}
-                                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-nofx-text-main focus:outline-none focus:border-nofx-gold/50 transition-colors"
-                                                    >
-                                                        <option value={20}>20</option>
-                                                        <option value={50}>50</option>
-                                                        <option value={100}>100</option>
-                                                    </select>
+                                                        onChange={(val) => setPositionsPageSize(Number(val))}
+                                                        options={[{ value: 20, label: '20' }, { value: 50, label: '50' }, { value: 100, label: '100' }]}
+                                                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-nofx-text-main transition-colors"
+                                                    />
                                                 </div>
                                                 {totalPositionPages > 1 && (
                                                     <div className="flex items-center gap-1">
@@ -729,6 +726,11 @@ export function TraderDashboardPage({
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            ) : positionsFailed ? (
+                                <div className="text-center py-16 text-nofx-text-muted opacity-60">
+                                    <div className="text-4xl mb-4">⚠️</div>
+                                    <div className="text-lg font-semibold mb-2">{t('traderDashboard.positionsFetchFailed', language)}</div>
                                 </div>
                             ) : (
                                 <div className="text-center py-16 text-nofx-text-muted opacity-60">
@@ -766,17 +768,12 @@ export function TraderDashboardPage({
                                 )}
                             </div>
                             {/* Limit Selector */}
-                            <select
+                            <NofxSelect
                                 value={decisionsLimit}
-                                onChange={(e) => onDecisionsLimitChange(Number(e.target.value))}
-                                className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-black/40 text-nofx-text-main border border-white/10 hover:border-nofx-accent focus:outline-none"
-                            >
-                                <option value={5}>5</option>
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                            </select>
+                                onChange={(val) => onDecisionsLimitChange(Number(val))}
+                                options={[{ value: 5, label: '5' }, { value: 10, label: '10' }, { value: 20, label: '20' }, { value: 50, label: '50' }, { value: 100, label: '100' }]}
+                                className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-black/40 text-nofx-text-main border border-white/10 hover:border-nofx-accent"
+                            />
                         </div>
 
                         {/* Decisions List - Scrollable */}
@@ -788,6 +785,11 @@ export function TraderDashboardPage({
                                 decisions.map((decision, i) => (
                                     <DecisionCard key={i} decision={decision} language={language} onSymbolClick={handleSymbolClick} />
                                 ))
+                            ) : decisionsFailed ? (
+                                <div className="py-16 text-center text-nofx-text-muted opacity-60">
+                                    <div className="text-4xl mb-4">⚠️</div>
+                                    <div className="text-lg font-semibold mb-2">{t('traderDashboard.decisionsFetchFailed', language)}</div>
+                                </div>
                             ) : (
                                 <div className="py-16 text-center text-nofx-text-muted opacity-60">
                                     <div className="text-6xl mb-4 opacity-30 grayscale">🧠</div>
@@ -832,6 +834,7 @@ function StatCard({
     positive,
     subtitle,
     icon,
+    loading,
 }: {
     title: string
     value: string
@@ -840,6 +843,7 @@ function StatCard({
     positive?: boolean
     subtitle?: string
     icon?: string
+    loading?: boolean
 }) {
     return (
         <div className="group nofx-glass p-5 rounded-lg transition-all duration-300 hover:bg-white/5 hover:translate-y-[-2px] border border-white/5 hover:border-nofx-gold/20 relative overflow-hidden">
@@ -849,27 +853,35 @@ function StatCard({
             <div className="text-xs mb-2 font-mono uppercase tracking-wider text-nofx-text-muted flex items-center gap-2">
                 {title}
             </div>
-            <div className="flex items-baseline gap-1 mb-1">
-                <div className="text-2xl font-bold font-mono text-nofx-text-main tracking-tight group-hover:text-white transition-colors">
-                    {value}
+            {loading ? (
+                <div className="space-y-2">
+                    <div className="h-7 w-24 rounded bg-white/5 animate-pulse" />
+                    <div className="h-3 w-16 rounded bg-white/5 animate-pulse" />
                 </div>
-                {unit && <span className="text-xs font-mono text-nofx-text-muted opacity-60">{unit}</span>}
-            </div>
-
-            {change !== undefined && (
-                <div className="flex items-center gap-1">
-                    <div
-                        className={`text-sm mono font-bold flex items-center gap-1 ${positive ? 'text-nofx-green' : 'text-nofx-red'}`}
-                    >
-                        <span>{positive ? '▲' : '▼'}</span>
-                        <span>{positive ? '+' : ''}{change.toFixed(2)}%</span>
+            ) : (
+                <>
+                    <div className="flex items-baseline gap-1 mb-1">
+                        <div className="text-2xl font-bold font-mono text-nofx-text-main tracking-tight group-hover:text-white transition-colors">
+                            {value}
+                        </div>
+                        {unit && <span className="text-xs font-mono text-nofx-text-muted opacity-60">{unit}</span>}
                     </div>
-                </div>
-            )}
-            {subtitle && (
-                <div className="text-xs mt-2 mono text-nofx-text-muted opacity-80">
-                    {subtitle}
-                </div>
+                    {change !== undefined && (
+                        <div className="flex items-center gap-1">
+                            <div
+                                className={`text-sm mono font-bold flex items-center gap-1 ${positive ? 'text-nofx-green' : 'text-nofx-red'}`}
+                            >
+                                <span>{positive ? '▲' : '▼'}</span>
+                                <span>{positive ? '+' : ''}{change.toFixed(2)}%</span>
+                            </div>
+                        </div>
+                    )}
+                    {subtitle && (
+                        <div className="text-xs mt-2 mono text-nofx-text-muted opacity-80">
+                            {subtitle}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     )

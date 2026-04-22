@@ -97,12 +97,24 @@ func (s *UserStore) GetAllIDs() ([]string, error) {
 	return userIDs, err
 }
 
+// GetAll returns all users ordered by creation time.
+func (s *UserStore) GetAll() ([]User, error) {
+	var users []User
+	err := s.db.Model(&User{}).Order("created_at").Find(&users).Error
+	return users, err
+}
+
 // UpdatePassword updates password
 func (s *UserStore) UpdatePassword(userID, passwordHash string) error {
 	return s.db.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"password_hash": passwordHash,
 		"updated_at":    time.Now().UTC(),
 	}).Error
+}
+
+// DeleteAll deletes all users (reset system to uninitialized state)
+func (s *UserStore) DeleteAll() error {
+	return s.db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&User{}).Error
 }
 
 // EnsureAdmin ensures admin user exists

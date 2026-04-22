@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { getSystemConfig } from '../lib/config'
+import { flushSync } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import { getSystemConfig, invalidateSystemConfig } from '../lib/config'
 import { reset401Flag, httpClient } from '../lib/httpClient'
+import { getPostAuthPath, setUserMode, type UserMode } from '../lib/onboarding'
+import { ROUTES } from '../router/paths'
+import { useLanguage } from './LanguageContext'
 
 interface User {
   id: string
@@ -12,7 +17,8 @@ interface AuthContextType {
   token: string | null
   login: (
     email: string,
-    password: string
+    password: string,
+    mode?: UserMode
   ) => Promise<{
     success: boolean
     message?: string
@@ -24,11 +30,9 @@ interface AuthContextType {
   register: (
     email: string,
     password: string,
-    betaCode?: string
-  ) => Promise<{
-    success: boolean
-    message?: string
-  }>
+    betaCode?: string,
+    mode?: UserMode
+  ) => Promise<{ success: boolean; message?: string }>
   resetPassword: (
     email: string,
     newPassword: string
@@ -40,6 +44,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { language } = useLanguage()
+  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -48,10 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Reset 401 flag on page load to allow fresh 401 handling
     reset401Flag()
 
-    // 先检查是否为管理员模式（使用带缓存的系统配置获取）
+    // Check if admin mode is active (uses cached system config)
     getSystemConfig()
       .then(() => {
-        // 不再在管理员模式下模拟登录；统一检查本地存储
+        // No longer simulate login in admin mode; check local storage uniformly
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
         if (savedToken && savedUser) {
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err) => {
         console.error('Failed to fetch system config:', err)
-        // 发生错误时，继续检查本地存储
+        // On error, continue checking local storage
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
 
@@ -92,7 +98,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const handlePostAuthSuccess = (
+    authToken: string,
+    userInfo: User,
+    mode?: UserMode
+  ) => {
+    reset401Flag()
+
+    if (mode) {
+      setUserMode(mode)
+    }
+
+    localStorage.setItem('auth_token', authToken)
+    localStorage.setItem('auth_user', JSON.stringify(userInfo))
+    localStorage.setItem('user_id', userInfo.id)
+    flushSync(() => {
+      setToken(authToken)
+      setUser(userInfo)
+    })
+
+    const returnUrl = sessionStorage.getItem('returnUrl')
+    const nextPath = returnUrl || getPostAuthPath(mode)
+    if (returnUrl) {
+      sessionStorage.removeItem('returnUrl')
+    }
+
+    navigate(nextPath)
+  }
+
+  const login = async (email: string, password: string, mode?: UserMode) => {
     try {
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -106,32 +140,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         if (data.token) {
-          // Reset 401 flag on successful login
-          reset401Flag()
-
           const userInfo = { id: data.user_id, email: data.email }
-          setToken(data.token)
-          setUser(userInfo)
-          localStorage.setItem('auth_token', data.token)
-          localStorage.setItem('auth_user', JSON.stringify(userInfo))
-
-          // Check and redirect to returnUrl if exists
-          const returnUrl = sessionStorage.getItem('returnUrl')
-          if (returnUrl) {
-            sessionStorage.removeItem('returnUrl')
-            window.history.pushState({}, '', returnUrl)
-            window.dispatchEvent(new PopStateEvent('popstate'))
-          } else {
-            // 跳转到配置页面
-            window.history.pushState({}, '', '/traders')
-            window.dispatchEvent(new PopStateEvent('popstate'))
-          }
+          handlePostAuthSuccess(data.token, userInfo, mode)
 
           return { success: true, message: data.message }
         }
 
         // Unexpected success response
-        return { success: false, message: data.message || '登录响应异常' }
+        return {
+          success: false,
+          message: data.message || 'Unexpected login response',
+        }
       } else {
         return {
           success: false,
@@ -139,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      return { success: false, message: '登录失败，请重试' }
+      return { success: false, message: 'Login failed, please try again' }
     }
   }
 
@@ -159,41 +178,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user_id || 'admin',
           email: data.email || 'admin@localhost',
         }
-        setToken(data.token)
-        setUser(userInfo)
         localStorage.setItem('auth_token', data.token)
         localStorage.setItem('auth_user', JSON.stringify(userInfo))
+        flushSync(() => {
+          setToken(data.token)
+          setUser(userInfo)
+        })
 
         // Check and redirect to returnUrl if exists
         const returnUrl = sessionStorage.getItem('returnUrl')
         if (returnUrl) {
           sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
+          navigate(returnUrl)
         } else {
-          // 跳转到仪表盘
-          window.history.pushState({}, '', '/dashboard')
-          window.dispatchEvent(new PopStateEvent('popstate'))
+          // Redirect to dashboard
+          navigate(ROUTES.dashboard)
         }
         return { success: true }
       } else {
-        return { success: false, message: data.error || '登录失败' }
+        return { success: false, message: data.error || 'Login failed' }
       }
     } catch (e) {
-      return { success: false, message: '登录失败，请重试' }
+      return { success: false, message: 'Login failed, please try again' }
     }
   }
 
   const register = async (
     email: string,
     password: string,
-    betaCode?: string
+    betaCode?: string,
+    mode?: UserMode
   ) => {
     const requestBody: {
       email: string
       password: string
       beta_code?: string
-    } = { email, password }
+      lang?: string
+    } = { email, password, lang: language }
     if (betaCode) {
       requestBody.beta_code = betaCode
     }
@@ -207,26 +228,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }>('/api/register', requestBody)
 
       if (result.success && result.data) {
-        // Reset 401 flag on successful login
-        reset401Flag()
+        // Clear stale onboarding state so new users always see the welcome flow
+        localStorage.removeItem('nofx_beginner_onboarding_completed')
+        localStorage.removeItem('nofx_beginner_wallet_address')
 
         const userInfo = { id: result.data.user_id, email: result.data.email }
-        setToken(result.data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', result.data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // 跳转到配置页面
-          window.history.pushState({}, '', '/traders')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
+        handlePostAuthSuccess(result.data.token, userInfo, mode)
 
         return {
           success: true,
@@ -240,13 +247,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message: result.message || 'Registration failed',
       }
     } catch (error) {
-      console.error('Auth register error:', error);
+      console.error('Auth register error:', error)
       // Re-throw if it's a critical error, or return structured error
       // Since httpClient throws on 500, we should return a structured error response
       // to let the UI display it gracefully without crashing.
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Detailed server error'
+        message:
+          error instanceof Error ? error.message : 'Detailed server error',
       }
     }
   }
@@ -272,7 +280,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return { success: false, message: '密码重置失败，请重试' }
+      return {
+        success: false,
+        message: 'Password reset failed, please try again',
+      }
     }
   }
 
@@ -290,6 +301,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+    invalidateSystemConfig()
+    navigate(ROUTES.home)
   }
 
   return (
