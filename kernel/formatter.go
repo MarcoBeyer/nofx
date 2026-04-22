@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"encoding/json"
 	"fmt"
 	"nofx/market"
 	"nofx/provider/nofxos"
@@ -96,6 +97,16 @@ func formatContextData(ctx *Context, lang Language) string {
 			nofxosLang = nofxos.LangChinese
 		}
 		sb.WriteString(nofxos.FormatOIRankingForAI(ctx.OIRankingData, nofxosLang))
+	}
+
+	// 8. External Data
+	if len(ctx.ExternalData) > 0 {
+		sb.WriteString("\n## External Intelligence\n\n")
+		jsonData, err := json.MarshalIndent(ctx.ExternalData, "", "  ")
+		if err == nil {
+			sb.WriteString(string(jsonData))
+			sb.WriteString("\n\n")
+		}
 	}
 
 	return sb.String()

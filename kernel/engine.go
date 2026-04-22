@@ -110,6 +110,7 @@ type Context struct {
 	BTCETHLeverage     int                                `json:"-"`
 	AltcoinLeverage    int                                `json:"-"`
 	Timeframes         []string                           `json:"-"`
+	ExternalData       map[string]interface{}             `json:"external_data,omitempty"`
 }
 
 // Decision AI trading decision
