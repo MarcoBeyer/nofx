@@ -170,6 +170,7 @@ func NewHyperliquidTrader(privateKeyHex string, walletAddr string, testnet bool,
 		"",         // vault address (empty for personal account)
 		walletAddr, // wallet address
 		nil,        // SpotMeta will be fetched automatically
+		nil,        // perpDexs will be fetched automatically
 	)
 
 	logger.Infof("✓ Hyperliquid trader initialized successfully (testnet=%v, wallet=%s)", testnet, walletAddr)
