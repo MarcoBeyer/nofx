@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, X, Database, TrendingUp, TrendingDown, List, Ban, Zap, Shuffle } from 'lucide-react'
+import { Plus, X, Database, TrendingUp, TrendingDown, List, Ban, Zap, Shuffle, BarChart2 } from 'lucide-react'
 import type { CoinSourceConfig } from '../../types'
 import { coinSource, ts } from '../../i18n/strategy-translations'
 import { NofxSelect } from '../ui/select'
@@ -25,6 +25,7 @@ export function CoinSourceEditor({
     { value: 'ai500', icon: Database, color: '#F0B90B' },
     { value: 'oi_top', icon: TrendingUp, color: '#0ECB81' },
     { value: 'oi_low', icon: TrendingDown, color: '#F6465D' },
+    { value: 'stock_screener', icon: BarChart2, color: '#22c55e' },
   ] as const
 
   // Calculate mixed mode summary
@@ -673,6 +674,72 @@ export function CoinSourceEditor({
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Stock Screener Options */}
+      {config.source_type === 'stock_screener' && (
+        <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-green-500" />
+              <span className="text-sm font-medium text-nofx-text">
+                Stock Screener
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                Finnhub
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.use_stock_screener || false}
+                onChange={(e) => !disabled && onChange({ ...config, use_stock_screener: e.target.checked })}
+                disabled={disabled}
+                className="w-5 h-5 rounded accent-green-500"
+              />
+              <span className="text-nofx-text">Enable Stock Screener</span>
+            </label>
+
+            {config.use_stock_screener && (
+              <>
+                <div className="flex items-center gap-3 pl-8">
+                  <span className="text-sm text-nofx-text-muted">Screener Type:</span>
+                  <select
+                    value={config.stock_screener_type || 'gainers'}
+                    onChange={(e) => !disabled && onChange({ ...config, stock_screener_type: e.target.value as 'gainers' | 'losers' | 'momentum' })}
+                    disabled={disabled}
+                    className="px-3 py-1.5 rounded bg-nofx-bg border border-green-500/20 text-nofx-text"
+                  >
+                    <option value="gainers">Top Gainers</option>
+                    <option value="losers">Top Losers</option>
+                    <option value="momentum">High Momentum</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3 pl-8">
+                  <span className="text-sm text-nofx-text-muted">Limit:</span>
+                  <select
+                    value={config.stock_screener_limit || 10}
+                    onChange={(e) => !disabled && onChange({ ...config, stock_screener_limit: parseInt(e.target.value) || 10 })}
+                    disabled={disabled}
+                    className="px-3 py-1.5 rounded bg-nofx-bg border border-green-500/20 text-nofx-text"
+                  >
+                    {[5, 10, 15, 20, 30].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <p className="text-xs pl-8 text-nofx-text-muted">
+              Requires Finnhub API Key (FINNHUB_API_KEY)
+            </p>
+          </div>
         </div>
       )}
     </div>

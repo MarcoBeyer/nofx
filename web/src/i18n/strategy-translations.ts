@@ -253,6 +253,23 @@ export const indicator = {
   notConfigured: { zh: '未配置', en: 'Not Configured', es: 'No Configurado' },
   nofxosDataSources: { zh: 'NofxOS 数据源', en: 'NofxOS Data Sources', es: 'Fuentes NofxOS' },
   configureApiKey: { zh: '请配置 API Key 以启用 NofxOS 数据源', en: 'Please configure API Key to enable NofxOS data sources', es: 'Configure API Key para habilitar NofxOS' },
+
+  // Finnhub Stock Data Provider
+  stockDataTitle: { zh: 'Finnhub 股票数据源', en: 'Finnhub Stock Data Provider', es: 'Proveedor Finnhub' },
+  stockDataDesc: { zh: '股票市场数据服务', en: 'Stock market data service', es: 'Datos del mercado' },
+  stockDataFeatures: { zh: '新闻 · 涨跌榜 · 成交量 · 情绪', en: 'News · Gainers/Losers · Volume · Sentiment', es: 'Noticias · Ganadores · Volumen · Sentimiento' },
+  stockDataSources: { zh: 'Finnhub 数据源', en: 'Finnhub Data Sources', es: 'Fuentes Finnhub' },
+  stockDataEnvNote: { zh: '需设置 FINNHUB_API_KEY 环境变量', en: 'Requires FINNHUB_API_KEY environment variable', es: 'Requiere FINNHUB_API_KEY' },
+  stockNews: { zh: '股票新闻', en: 'Stock News', es: 'Noticias' },
+  stockNewsDesc: { zh: '公司及市场新闻', en: 'Company & market news', es: 'Noticias de empresa' },
+  stockNewsLimit: { zh: '每股新闻数', en: 'per stock', es: 'por acción' },
+  stockNewsDays: { zh: '回溯天数', en: 'days', es: 'días' },
+  stockGainers: { zh: '涨跌幅排行', en: 'Gainers/Losers', es: 'Ganadores/Perdedores' },
+  stockGainersDesc: { zh: '涨幅/跌幅前列股票', en: 'Top gaining and losing stocks', es: 'Principales acciones' },
+  stockVolume: { zh: '成交量异动', en: 'Volume Movers', es: 'Volumen' },
+  stockVolumeDesc: { zh: '成交量异常放大股票', en: 'High volume activity stocks', es: 'Acciones con alto volumen' },
+  stockSentiment: { zh: '市场情绪', en: 'Market Sentiment', es: 'Sentimiento' },
+  stockSentimentDesc: { zh: '整体市场指标与情绪', en: 'Overall market indicators', es: 'Indicadores de mercado' },
 };
 
 // ============================================================================

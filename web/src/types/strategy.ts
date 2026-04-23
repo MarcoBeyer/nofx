@@ -88,15 +88,19 @@ export interface GridStrategyConfig {
 }
 
 export interface CoinSourceConfig {
-  source_type: 'static' | 'ai500' | 'oi_top' | 'oi_low' | 'mixed';
+  source_type: 'static' | 'ai500' | 'oi_top' | 'oi_low' | 'mixed' | 'stock_screener';
   static_coins?: string[];
-  excluded_coins?: string[];   // 排除的币种列表
+  excluded_coins?: string[];
   use_ai500: boolean;
   ai500_limit?: number;
   use_oi_top: boolean;
   oi_top_limit?: number;
   use_oi_low: boolean;
   oi_low_limit?: number;
+  // Stock Screener (Finnhub)
+  use_stock_screener?: boolean;
+  stock_screener_type?: 'gainers' | 'losers' | 'momentum';
+  stock_screener_limit?: number;
   // Note: API URLs are now built automatically using nofxos_api_key from IndicatorConfig
 }
 
@@ -142,6 +146,16 @@ export interface IndicatorConfig {
   enable_price_ranking?: boolean;
   price_ranking_duration?: string;  // "1h", "4h", "24h" or "1h,4h,24h"
   price_ranking_limit?: number;
+
+  // Stock data (Finnhub) — only relevant when using Alpaca exchange
+  enable_stock_news?: boolean;
+  stock_news_limit?: number;
+  stock_news_days?: number;
+  enable_stock_gainers?: boolean;
+  stock_gainers_limit?: number;
+  enable_stock_volume?: boolean;
+  stock_volume_limit?: number;
+  enable_stock_sentiment?: boolean;
 }
 
 export interface KlineConfig {

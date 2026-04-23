@@ -31,6 +31,7 @@ const SUPPORTED_EXCHANGE_TEMPLATES = [
   { exchange_type: 'aster', name: 'Aster DEX', type: 'dex' as const },
   { exchange_type: 'lighter', name: 'Lighter', type: 'dex' as const },
   { exchange_type: 'indodax', name: 'Indodax', type: 'cex' as const },
+  { exchange_type: 'alpaca', name: 'Alpaca (Stocks)', type: 'cex' as const },
 ]
 
 interface ExchangeConfigModalProps {
@@ -503,6 +504,67 @@ export function ExchangeConfigModal({
                   required
                 />
               </div>
+
+              {/* Alpaca Fields */}
+              {currentExchangeType === 'alpaca' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                      <Key className="w-4 h-4" style={{ color: '#22c55e' }} />
+                      {t('apiKey', language)}
+                    </label>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder={t('enterAPIKey', language)}
+                      className="w-full px-4 py-3 rounded-xl"
+                      style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                      <Shield className="w-4 h-4" style={{ color: '#22c55e' }} />
+                      {t('secretKey', language)}
+                    </label>
+                    <input
+                      type="password"
+                      value={secretKey}
+                      onChange={(e) => setSecretKey(e.target.value)}
+                      placeholder={t('enterSecretKey', language)}
+                      className="w-full px-4 py-3 rounded-xl"
+                      style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
+                      required
+                    />
+                  </div>
+                  <div
+                    className="p-4 rounded-xl"
+                    style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)' }}
+                  >
+                    <div className="text-sm font-semibold mb-2" style={{ color: '#22c55e' }}>Trading Mode</div>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={testnet}
+                        onChange={(e) => setTestnet(e.target.checked)}
+                        className="w-5 h-5 rounded accent-green-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium" style={{ color: '#EAECEF' }}>Paper Trading</span>
+                        <div className="text-xs" style={{ color: '#848E9C' }}>
+                          Enable to use Alpaca paper trading account with no real money risk
+                        </div>
+                      </div>
+                    </label>
+                    {testnet && (
+                      <div className="mt-2 px-2 py-1 rounded text-xs" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e' }}>
+                        ✓ Using Paper Trading API
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* CEX Fields */}
               {(currentExchangeType === 'binance' || currentExchangeType === 'bybit' || currentExchangeType === 'okx' || currentExchangeType === 'bitget' || currentExchangeType === 'gate' || currentExchangeType === 'kucoin' || currentExchangeType === 'indodax') && (

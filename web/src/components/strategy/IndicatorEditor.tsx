@@ -686,6 +686,170 @@ export function IndicatorEditor({
           </div>
         </div>
       </div>
+
+      {/* ============================================ */}
+      {/* Finnhub Stock Data Provider                 */}
+      {/* ============================================ */}
+      <div
+        className="rounded-lg overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.08) 50%, rgba(6, 182, 212, 0.08) 100%)',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+        }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981, #06b6d4)' }} />
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #22c55e, #10b981)' }}>
+                <TrendingUp className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{ts(indicator.stockDataTitle, language)}</h3>
+                <span className="text-[10px]" style={{ color: '#848E9C' }}>{ts(indicator.stockDataFeatures, language)}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {config.enable_stock_news ? (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full" style={{ background: 'rgba(14, 203, 129, 0.15)', color: '#0ECB81' }}>
+                  <Check className="w-3 h-3" />{ts(indicator.connected, language)}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full" style={{ background: 'rgba(132, 142, 156, 0.15)', color: '#848E9C' }}>
+                  {language === 'zh' ? '未启用' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg" style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+            <Info className="w-4 h-4 flex-shrink-0" style={{ color: '#22c55e' }} />
+            <span className="text-[10px]" style={{ color: '#22c55e' }}>{ts(indicator.stockDataEnvNote, language)}</span>
+          </div>
+
+          <div>
+            <div className="text-[10px] font-medium mb-2" style={{ color: '#848E9C' }}>{ts(indicator.stockDataSources, language)}</div>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Stock News */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_news ? 'rgba(34, 197, 94, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_news ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({
+                  ...config,
+                  enable_stock_news: !config.enable_stock_news,
+                  ...(!config.enable_stock_news && !config.stock_news_limit ? { stock_news_limit: 3 } : {}),
+                  ...(!config.enable_stock_news && !config.stock_news_days ? { stock_news_days: 3 } : {}),
+                })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{ts(indicator.stockNews, language)}</span>
+                  </div>
+                  <input type="checkbox" checked={config.enable_stock_news || false}
+                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({ ...config, enable_stock_news: e.target.checked, ...(e.target.checked && !config.stock_news_limit ? { stock_news_limit: 3 } : {}), ...(e.target.checked && !config.stock_news_days ? { stock_news_days: 3 } : {}) }) }}
+                    disabled={disabled} className="w-3.5 h-3.5 rounded accent-green-500" />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{ts(indicator.stockNewsDesc, language)}</p>
+                {config.enable_stock_news && (
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select value={config.stock_news_limit || 3} onChange={(e) => !disabled && onChange({ ...config, stock_news_limit: parseInt(e.target.value) })} disabled={disabled} className="flex-1 px-2 py-1 rounded text-[10px]" style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}>
+                      {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n} {ts(indicator.stockNewsLimit, language)}</option>)}
+                    </select>
+                    <select value={config.stock_news_days || 3} onChange={(e) => !disabled && onChange({ ...config, stock_news_days: parseInt(e.target.value) })} disabled={disabled} className="flex-1 px-2 py-1 rounded text-[10px]" style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}>
+                      {[1, 3, 7, 14, 30].map(n => <option key={n} value={n}>{n} {ts(indicator.stockNewsDays, language)}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Gainers/Losers */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_gainers ? 'rgba(236, 72, 153, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_gainers ? '1px solid rgba(236, 72, 153, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({ ...config, enable_stock_gainers: !config.enable_stock_gainers, ...(!config.enable_stock_gainers && !config.stock_gainers_limit ? { stock_gainers_limit: 10 } : {}) })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#ec4899' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{ts(indicator.stockGainers, language)}</span>
+                  </div>
+                  <input type="checkbox" checked={config.enable_stock_gainers || false}
+                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({ ...config, enable_stock_gainers: e.target.checked, ...(e.target.checked && !config.stock_gainers_limit ? { stock_gainers_limit: 10 } : {}) }) }}
+                    disabled={disabled} className="w-3.5 h-3.5 rounded accent-pink-500" />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{ts(indicator.stockGainersDesc, language)}</p>
+                {config.enable_stock_gainers && (
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select value={config.stock_gainers_limit || 10} onChange={(e) => !disabled && onChange({ ...config, stock_gainers_limit: parseInt(e.target.value) })} disabled={disabled} className="flex-1 px-2 py-1 rounded text-[10px]" style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}>
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Volume Movers */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_volume ? 'rgba(245, 158, 11, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_volume ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({ ...config, enable_stock_volume: !config.enable_stock_volume, ...(!config.enable_stock_volume && !config.stock_volume_limit ? { stock_volume_limit: 10 } : {}) })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#f59e0b' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{ts(indicator.stockVolume, language)}</span>
+                  </div>
+                  <input type="checkbox" checked={config.enable_stock_volume || false}
+                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({ ...config, enable_stock_volume: e.target.checked, ...(e.target.checked && !config.stock_volume_limit ? { stock_volume_limit: 10 } : {}) }) }}
+                    disabled={disabled} className="w-3.5 h-3.5 rounded accent-amber-500" />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{ts(indicator.stockVolumeDesc, language)}</p>
+                {config.enable_stock_volume && (
+                  <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <select value={config.stock_volume_limit || 10} onChange={(e) => !disabled && onChange({ ...config, stock_volume_limit: parseInt(e.target.value) })} disabled={disabled} className="flex-1 px-2 py-1 rounded text-[10px]" style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#EAECEF' }}>
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Market Sentiment */}
+              <div
+                className="p-2.5 rounded-lg transition-all cursor-pointer"
+                style={{
+                  background: config.enable_stock_sentiment ? 'rgba(96, 165, 250, 0.1)' : 'rgba(30, 35, 41, 0.5)',
+                  border: config.enable_stock_sentiment ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(43, 49, 57, 0.5)',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+                onClick={() => !disabled && onChange({ ...config, enable_stock_sentiment: !config.enable_stock_sentiment })}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#60a5fa' }} />
+                    <span className="text-xs font-medium" style={{ color: '#EAECEF' }}>{ts(indicator.stockSentiment, language)}</span>
+                  </div>
+                  <input type="checkbox" checked={config.enable_stock_sentiment || false}
+                    onChange={(e) => { e.stopPropagation(); !disabled && onChange({ ...config, enable_stock_sentiment: e.target.checked }) }}
+                    disabled={disabled} className="w-3.5 h-3.5 rounded accent-blue-500" />
+                </div>
+                <p className="text-[10px] mt-1" style={{ color: '#5E6673' }}>{ts(indicator.stockSentimentDesc, language)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -690,6 +690,14 @@ func (tm *TraderManager) addTraderFromStore(traderCfg *store.Trader, aiModelCfg 
 	case "indodax":
 		traderConfig.IndodaxAPIKey = string(exchangeCfg.APIKey)
 		traderConfig.IndodaxSecretKey = string(exchangeCfg.SecretKey)
+	case "alpaca":
+		traderConfig.AlpacaAPIKey = string(exchangeCfg.APIKey)
+		traderConfig.AlpacaSecretKey = string(exchangeCfg.SecretKey)
+		if exchangeCfg.Testnet {
+			traderConfig.AlpacaFeedURL = "https://paper-api.alpaca.markets"
+		} else {
+			traderConfig.AlpacaFeedURL = "https://api.alpaca.markets"
+		}
 	}
 
 	// Set API keys based on AI model (convert EncryptedString to string)
